@@ -292,14 +292,14 @@ INV.forEach((it,i) => it.id = i);
 const APPS_SCRIPT = `function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Orders') || ss.insertSheet('Orders');
-  var headers = ['Timestamp','Order ID','Payment','First Name','Last Name','Email','State','Subscribe','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total'];
+  var headers = ['Timestamp','Order ID','Payment','Item','Qty','Spot Price','Unit Price','Line Total','Subtotal','Card Fee','Order Total','First Name','Last Name','Email','State','Subscribe'];
   if (sheet.getLastRow() === 0 || sheet.getRange(1,1).getValue() !== 'Timestamp' || sheet.getLastColumn() < headers.length) {
     if (sheet.getLastRow() > 0) sheet.getRange(1, 1, 1, sheet.getLastColumn()).clearContent();
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   var d = JSON.parse(e.parameter.payload || e.postData.contents);
   d.items.forEach(function(it) {
-    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, d.custFirst, d.custLast, d.custEmail, d.custState, d.custSub ? 'Yes' : 'No', it.item, it.qty, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total]);
+    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, it.item, it.qty, it.spotPrice, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total, d.custFirst, d.custLast, d.custEmail, d.custState, d.custSub ? 'Yes' : 'No']);
   });
 
   // Send receipt email if customer provided an email address
@@ -427,7 +427,7 @@ async function recordSale() {
   if (!Object.keys(state.cart).length || state.sending) return;
   const items = Object.keys(state.cart).map(idStr => {
     const it = INV[+idStr]; const spot = spotFor(it.m); const price = unitPrice(it, spot); const qy = state.cart[idStr];
-    return {item:it.n, category:it.c, metal:it.m, qty:qy, unitPrice:+price.toFixed(2), lineTotal:+(price*qy).toFixed(2)};
+    return {item:it.n, category:it.c, metal:it.m, qty:qy, spotPrice:+spot.toFixed(2), unitPrice:+price.toFixed(2), lineTotal:+(price*qy).toFixed(2)};
   });
   const subtotal = +items.reduce((a,l) => a+l.lineTotal, 0).toFixed(2);
   const cardFee = state.cardFee ? +(subtotal*0.03).toFixed(2) : 0;
