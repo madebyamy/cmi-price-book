@@ -295,7 +295,7 @@ const APPS_SCRIPT = `function doPost(e) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(['Timestamp','Order ID','Payment','First Name','Last Name','Email','State','Subscribe','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total']);
   }
-  var d = JSON.parse(e.postData.contents);
+  var d = JSON.parse(e.parameter.payload || e.postData.contents);
   d.items.forEach(function(it) {
     sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, d.custFirst, d.custLast, d.custEmail, d.custState, d.custSub ? 'Yes' : 'No', it.item, it.qty, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total]);
   });
@@ -432,13 +432,17 @@ async function recordSale() {
   const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.cardFee?'Credit Card':'Cash/Check', cardFeePct:state.cardFee?3:0, custFirst:state.custFirst.trim(), custLast:state.custLast.trim(), custEmail:state.custEmail.trim(), custState:state.custState, custSub:state.custSub, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
   state.sending = true; render();
   try {
-    await fetch(url, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(order)});
+    // URLSearchParams sends as application/x-www-form-urlencoded — simple request, no CORS preflight, real response readable
+    const body = new URLSearchParams({payload: JSON.stringify(order)});
+    const res = await fetch(url, {method:'POST', body});
+    const text = await res.text();
+    if (!res.ok || (text && text.toLowerCase().includes('error'))) throw new Error(text);
     const hadEmail = !!state.custEmail.trim();
     state.sending = false; state.cart = {}; state.override = {}; state.cardFee = false; state.cartOpen = false;
     state.custFirst = ''; state.custLast = ''; state.custEmail = ''; state.custState = ''; state.custSub = false;
     saveCart(); showToast(hadEmail ? 'Sale recorded & receipt emailed ✓' : 'Sale recorded to Google Sheet ✓');
   } catch(e) {
-    state.sending = false; showToast('Could not reach the sheet — check the link in Settings.');
+    state.sending = false; showToast('Sheet error — check the URL in ⚙ Settings and try again.');
   }
 }
 
@@ -771,7 +775,14 @@ function buildListSection() {
       h('span',{className:'grand-label'},'Total'),
       h('span',{className:'grand-total'},fmt(cartGrand))
     ));
-    footer.appendChild(h('button',{className:'record-btn',onClick:()=>recordSale()},st.sending?'Recording…':(st.webhook?'Record sale → Google Sheet':'Connect Google Sheet to record')));
+    if (!st.webhook) {
+      footer.appendChild(h('div',{style:'margin-top:14px;background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:2px;padding:10px 12px;font-size:12px;color:var(--warn-text);line-height:1.5;'},
+        '⚠ No Google Sheet connected. Tap ',h('strong',null,'⚙'),
+        ' at the top of the page, paste your Apps Script Web App URL, then come back here to record the sale.'
+      ));
+    } else {
+      footer.appendChild(h('button',{className:'record-btn',onClick:()=>recordSale()},st.sending?'Recording…':'Record sale → Google Sheet'));
+    }
     footer.appendChild(h('div',{className:'secondary-btns'},
       h('button',{className:'secondary-btn',onClick:()=>{clearCart();state.cartOpen=false;render();}},'Clear'),
       h('button',{className:'secondary-btn',onClick:()=>{state.cartOpen=false;render();}},'Close')
