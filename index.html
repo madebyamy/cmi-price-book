@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>CMI Gold &amp; Silver — Show Price Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:#EDEAE3;font-family:'PT Serif',Georgia,serif;}
+input,select,button,textarea{font-family:inherit;}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+:root{
+  --navy:#0C2340;
+  --navy-900:#081A30;
+  --navy-700:#173659;
+  --gold:#BD9B60;
+  --dark-gray:#4B4F54;
+  --medium-gray:#BBBCBC;
+  --light-gray:#C8C9C7;
+  --paper:#FBFAF7;
+  --subtle:#F2F0EB;
+  --white:#FFFFFF;
+  --border-1:#E4E1D9;
+  --border-2:#D2CEC3;
+  --yellow:#E9DF97;
+  --yellow-text:#7A5C12;
+  --warn-bg:#FBEEE9;
+  --warn-border:#E3B9A8;
+  --warn-text:#9A3D1C;
+  --grad-navy:linear-gradient(135deg,#173659 0%,#0C2340 55%,#081A30 100%);
+  --grad-gold:linear-gradient(135deg,#E8D9A8 0%,#C9A965 28%,#BD9B60 52%,#9C7E40 76%,#D8C188 100%);
+  --shadow-sm:0 1px 2px rgba(12,35,64,.06),0 1px 1px rgba(12,35,64,.04);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+}
+.app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--paper);box-shadow:0 0 40px rgba(12,35,64,.08);position:relative;}
+
+/* Typography */
+.disp{font-family:'MB Empire','Arial Narrow',Arial,sans-serif;text-transform:uppercase;letter-spacing:0.1em;}
+
+/* Scrollbar hide */
+.scroll-x{overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none;}
+.scroll-x::-webkit-scrollbar{display:none;}
+
+/* Header */
+.header{background:var(--grad-navy);padding:16px 18px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.header-logo{height:30px;display:block;}
+.header-logo-text{font-size:13px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#BD9B60;line-height:1.2;}
+.header-right{display:flex;align-items:center;gap:13px;}
+.header-title{text-align:right;}
+.header-title-main{font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.header-title-sub{font-style:italic;font-size:12px;color:rgba(255,255,255,0.55);margin-top:1px;}
+.settings-btn{background:transparent;border:1px solid rgba(255,255,255,0.25);color:var(--gold);width:34px;height:34px;border-radius:2px;cursor:pointer;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* Controls */
+.controls{position:sticky;top:0;z-index:30;background:var(--paper);border-bottom:1px solid var(--border-2);box-shadow:0 4px 14px rgba(12,35,64,.06);}
+.spot-row{padding:12px 14px 10px;}
+.spot-label{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px;}
+.spot-label-text{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--dark-gray);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.ratio-text{font-size:11.5px;color:#888;}
+.spot-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.spot-grid-sm{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px;}
+.spot-field{display:flex;flex-direction:column;gap:3px;}
+.spot-field-label{font-size:10px;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.spot-field-label.gold{color:var(--gold);}
+.spot-field-label.silver{color:#8C9092;}
+.spot-field-label.plat{color:#6E8CA8;font-size:9.5px;letter-spacing:0.12em;}
+.spot-field-label.pall{color:#8E7BA6;font-size:9.5px;letter-spacing:0.12em;}
+.spot-input-wrap{display:flex;align-items:center;border:1px solid var(--border-2);background:#fff;border-radius:2px;padding:0 8px;}
+.spot-input-wrap.sm{padding:0 6px;}
+.spot-dollar{color:#aaa;font-size:14px;}
+.spot-dollar.sm{font-size:12px;}
+.spot-input{border:none;outline:none;width:100%;padding:8px 4px;font-size:18px;color:var(--navy);background:transparent;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.spot-input.sm{padding:6px 3px;font-size:14px;color:var(--dark-gray);}
+.spot-inline{display:flex;align-items:center;gap:6px;}
+
+/* Search & filters */
+.filter-row{padding:0 14px 10px;display:flex;flex-direction:column;gap:8px;}
+.search-wrap{display:flex;align-items:center;border:1px solid var(--border-2);background:#fff;border-radius:2px;padding:0 10px;}
+.search-icon{color:#aaa;font-size:15px;margin-right:6px;}
+.search-input{border:none;outline:none;width:100%;padding:9px 2px;font-size:15px;color:var(--navy);background:transparent;}
+.search-clear{color:#aaa;font-size:14px;cursor:pointer;padding:4px;}
+.chip-row{display:flex;gap:6px;padding-bottom:2px;}
+.chip{flex:0 0 auto;padding:7px 13px;border-radius:2px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:all 140ms var(--ease-out);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;border:1px solid var(--border-2);}
+.chip.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.chip.inactive{background:#fff;color:var(--dark-gray);}
+.filter-selects{display:flex;gap:8px;align-items:center;}
+.filter-select{flex:1;border:1px solid var(--border-2);background:#fff;border-radius:2px;padding:7px 8px;font-size:13px;color:var(--dark-gray);}
+.spot-toggle{flex:0 0 auto;padding:7px 13px;border-radius:2px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:all 140ms var(--ease-out);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;border:1px solid var(--border-2);}
+
+/* Summary strip */
+.summary{padding:9px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--subtle);border-bottom:1px solid var(--border-1);}
+.summary-count{font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dark-gray);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.summary-value{font-size:11.5px;color:#888;}
+
+/* Product list */
+.list{padding:6px 12px 120px;}
+.cat-header{display:flex;align-items:baseline;gap:8px;padding:16px 4px 7px;border-bottom:1px solid var(--border-1);margin-bottom:7px;}
+.cat-label{font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:var(--navy);font-weight:600;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.cat-count{font-size:11px;color:#aaa;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;margin-left:auto;}
+.item-card{background:#fff;border:1px solid var(--border-1);border-radius:3px;padding:11px 13px;margin-bottom:7px;box-shadow:var(--shadow-sm);}
+.item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.item-left{flex:1;min-width:0;}
+.item-name{font-size:14.5px;font-weight:700;color:var(--navy);line-height:1.25;}
+.item-badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:5px;}
+.badge-weight{font-size:10.5px;letter-spacing:0.05em;color:var(--dark-gray);background:var(--subtle);padding:2px 6px;border-radius:2px;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.badge-qty{font-size:11.5px;color:#888;}
+.badge-spot{font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--yellow-text);background:var(--yellow);padding:2px 6px;border-radius:2px;font-weight:600;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.badge-over{font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--warn-text);background:var(--warn-bg);padding:2px 6px;border-radius:2px;font-weight:600;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.item-right{text-align:right;flex-shrink:0;}
+.item-price{font-size:21px;font-weight:600;color:var(--navy);line-height:1;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.item-rule{font-size:11px;color:var(--gold);margin-top:4px;white-space:nowrap;}
+.melt-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border-1);}
+.melt-val{font-size:11.5px;color:#888;}
+.prem-val{font-size:11.5px;color:var(--dark-gray);}
+.below-melt{margin-top:7px;background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:2px;padding:5px 8px;font-size:11px;color:var(--warn-text);}
+.item-actions{display:flex;justify-content:flex-end;align-items:flex-start;gap:10px;margin-top:9px;}
+.add-btn{padding:7px 15px;border:1px solid var(--navy);background:#fff;color:var(--navy);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.in-cart-row{display:flex;flex-direction:column;align-items:flex-end;gap:5px;width:100%;}
+.in-cart-top{display:flex;align-items:center;gap:10px;width:100%;}
+.in-cart-label{font-size:12px;color:var(--dark-gray);margin-right:auto;}
+.stepper{display:flex;align-items:center;border:1px solid var(--navy);border-radius:2px;overflow:hidden;}
+.step-btn{padding:5px 13px;background:#fff;color:var(--navy);border:none;font-size:17px;line-height:1;cursor:pointer;}
+.step-btn.sm{padding:4px 11px;font-size:16px;}
+.step-qty{padding:0 12px;font-size:15px;color:var(--navy);min-width:20px;text-align:center;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.step-qty.sm{padding:0 10px;font-size:14px;min-width:18px;}
+.step-inc-norm{background:var(--navy);color:#fff;}
+.step-inc-max{background:var(--gold);color:var(--navy);}
+.at-max-hint{font-size:11px;color:#8A6D2B;}
+.over-hint{font-size:11px;color:var(--warn-text);}
+.empty-msg{text-align:center;padding:50px 20px;color:#aaa;font-style:italic;}
+
+/* Cart bar */
+.cart-bar{position:sticky;bottom:0;z-index:40;background:var(--grad-navy);border-top:1px solid rgba(255,255,255,0.12);padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;box-shadow:0 -6px 20px rgba(8,26,48,.18);}
+.cart-bar-left{display:flex;flex-direction:column;}
+.cart-bar-count{font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.cart-bar-total{font-size:22px;color:#fff;line-height:1.1;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.cart-bar-cta{font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#fff;border:1px solid var(--gold);padding:10px 16px;border-radius:2px;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+
+/* Bottom sheets */
+.overlay{position:fixed;inset:0;background:rgba(8,26,48,.5);z-index:50;}
+.sheet{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;background:var(--paper);z-index:51;max-height:86vh;display:flex;flex-direction:column;border-top-left-radius:8px;border-top-right-radius:8px;box-shadow:0 -12px 44px rgba(8,26,48,.34);}
+.sheet-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border-2);}
+.sheet-title{font-size:15px;letter-spacing:0.1em;text-transform:uppercase;color:var(--navy);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.sheet-close{font-size:18px;color:#aaa;cursor:pointer;padding:2px 6px;}
+.sheet-body{overflow-y:auto;flex:1;padding:8px 14px;}
+.sheet-footer{padding:14px 18px 18px;border-top:1px solid var(--border-2);background:#fff;}
+
+/* Order sheet */
+.order-line{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--border-1);}
+.order-line-info{flex:1;min-width:0;}
+.order-line-name{font-size:13.5px;font-weight:700;color:var(--navy);line-height:1.25;}
+.order-line-sub{font-size:11.5px;color:#888;margin-top:2px;}
+.order-line-total{font-size:15px;color:var(--navy);min-width:74px;text-align:right;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.totals-row{display:flex;justify-content:space-between;font-size:13px;color:var(--dark-gray);margin-bottom:10px;}
+.card-fee-btn{width:100%;padding:12px;border-radius:2px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.grand-row{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-2);}
+.grand-label{font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--navy);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.grand-total{font-size:26px;color:var(--navy);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.record-btn{width:100%;margin-top:14px;padding:13px;background:var(--grad-gold);border:none;color:var(--navy);font-size:13px;letter-spacing:0.12em;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.secondary-btns{display:flex;gap:10px;margin-top:10px;}
+.secondary-btn{flex:1;padding:11px;background:#fff;border:1px solid var(--border-2);color:var(--dark-gray);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+
+/* Settings sheet */
+.settings-body{overflow-y:auto;padding:16px 18px 22px;}
+.settings-label{font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.webhook-input{width:100%;border:1px solid var(--border-2);background:#fff;border-radius:2px;padding:10px;font-size:13px;color:var(--navy);}
+.settings-desc{font-size:12px;color:#666;line-height:1.6;margin:14px 0 6px;}
+.steps-label{font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dark-gray);margin:16px 0 8px;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.steps-list{font-size:12.5px;color:#666;line-height:1.7;padding-left:18px;margin:0 0 12px;}
+.script-wrap{position:relative;}
+.copy-btn{position:absolute;top:8px;right:8px;background:var(--navy);color:#fff;border:none;border-radius:2px;padding:5px 10px;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.script-pre{background:#0F2742;color:#D8E0EA;border-radius:4px;padding:14px;overflow-x:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.55;margin:0;white-space:pre;}
+.save-btn{width:100%;margin-top:16px;padding:12px;background:var(--grad-gold);border:none;color:var(--navy);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+
+/* Toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:60;background:var(--navy);color:#fff;font-size:12px;letter-spacing:0.06em;padding:12px 20px;border-radius:3px;box-shadow:0 8px 28px rgba(8,26,48,.4);max-width:88%;text-align:center;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;pointer-events:none;}
+.footnote{font-size:11px;color:#aaa;line-height:1.6;margin:18px 6px 0;}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+const INV = [
+  // ---- SILVER ----
+  {c:"Old U.S. Silver", n:"Pre-1921 Morgan Silver Dollar — AU", m:"silver", oz:0.7734, mode:"flat", p:65, q:25},
+  {c:"Old U.S. Silver", n:"1921 Morgan Silver Dollar — XF+", m:"silver", oz:0.7734, mode:"flat", p:55, q:19},
+  {c:"Old U.S. Silver", n:"Peace Dollar — XF+", m:"silver", oz:0.7734, mode:"flat", p:52, q:35},
+  {c:"Old U.S. Silver", n:"90% Silver — $50 Face Value Bag", m:"silver", oz:35.75, mode:"spot", p:0, q:2},
+  {c:"Old U.S. Silver", n:"1000-oz IRA Silver Bar (1015.30 ozt)", m:"silver", oz:1015.30, mode:"peroz", p:0.55, q:1},
+  {c:"100-oz & 50-oz Silver Bars", n:"100-oz RCM Silver Bar", m:"silver", oz:100, mode:"peroz", p:1.00, q:1},
+  {c:"100-oz & 50-oz Silver Bars", n:"100-oz JBR Silver Bar", m:"silver", oz:100, mode:"spot", p:0, q:1},
+  {c:"100-oz & 50-oz Silver Bars", n:"100-oz Engelhard Silver Bar (Extruded)", m:"silver", oz:100, mode:"peroz", p:1.00, q:1},
+  {c:"100-oz & 50-oz Silver Bars", n:"100-oz Johnson Matthey Silver Bar", m:"silver", oz:100, mode:"spot", p:0, q:1},
+  {c:"100-oz & 50-oz Silver Bars", n:"100-oz IGR Silver Bar", m:"silver", oz:100, mode:"spot", p:0, q:1},
+  {c:"100-oz & 50-oz Silver Bars", n:"50-oz Sunshine Silver Bar (struck)", m:"silver", oz:50, mode:"peroz", p:1.00, q:1},
+  {c:"Metric & Kilo Silver", n:"Australian Kilo Koala Silver Coin", m:"silver", oz:32.15, mode:"peroz", p:1.00, q:1},
+  {c:"Metric & Kilo Silver", n:"Germania Mint Kilo Silver Bar", m:"silver", oz:32.15, mode:"spot", p:0, q:2},
+  {c:"Metric & Kilo Silver", n:"Perth Mint Kilo Silver Bar", m:"silver", oz:32.15, mode:"spot", p:0, q:1},
+  {c:"Metric & Kilo Silver", n:"20-oz Scottsdale Mint Silver Bar", m:"silver", oz:20, mode:"peroz", p:1.00, q:1},
+  {c:"10-oz Silver Bars", n:"10-oz Skeleton Silver Bar", m:"silver", oz:10, mode:"peroz", p:1.00, q:6},
+  {c:"10-oz Silver Bars", n:"10-oz JBR Silver Bar", m:"silver", oz:10, mode:"peroz", p:1.00, q:6},
+  {c:"10-oz Silver Bars", n:"10-oz SilverTowne Silver Bar", m:"silver", oz:10, mode:"peroz", p:1.00, q:4},
+  {c:"10-oz Silver Bars", n:"10-oz Silver Skull Bar", m:"silver", oz:10, mode:"peroz", p:1.00, q:4},
+  {c:"10-oz Silver Bars", n:"10-oz PAMP Lady Liberty Silver Bar", m:"silver", oz:10, mode:"peroz", p:1.00, q:6},
+  {c:"10-oz Silver Bars", n:"10-oz Generic Silver Bar (Triangle / Year of Horse)", m:"silver", oz:10, mode:"peroz", p:1.00, q:4},
+  {c:"10-oz Silver Bars", n:"10-oz Ohio Precious Metals Silver Bar", m:"silver", oz:10, mode:"peroz", p:1.00, q:1},
+  {c:"10-oz Silver Bars", n:"10-oz RCM Silver Bar .9999", m:"silver", oz:10, mode:"peroz", p:1.00, q:5},
+  {c:"5-oz, 2-oz & 100 g Silver", n:"5-oz Scottsdale Mint Silver Piece", m:"silver", oz:5, mode:"peroz", p:1.00, q:2},
+  {c:"5-oz, 2-oz & 100 g Silver", n:"5-oz SilverTowne Silver Bar", m:"silver", oz:5, mode:"peroz", p:1.00, q:8},
+  {c:"5-oz, 2-oz & 100 g Silver", n:"2-oz Silver Coins & Rounds", m:"silver", oz:2, mode:"peroz", p:1.00, q:6},
+  {c:"5-oz, 2-oz & 100 g Silver", n:"100-gram Valcambi CombiBar", m:"silver", oz:3.2151, mode:"peroz", p:5.00, q:5},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Silver Eagle — 2026", m:"silver", oz:1, mode:"peroz", p:6.00, q:60},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Silver Eagle — BD", m:"silver", oz:1, mode:"peroz", p:4.00, q:240},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Silver Maple Leaf — 2026", m:"silver", oz:1, mode:"peroz", p:4.00, q:43},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Panda Silver Coin (holder)", m:"silver", oz:1, mode:"peroz", p:1.00, q:10},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Britannia Silver Coin", m:"silver", oz:1, mode:"peroz", p:1.00, q:25},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Silver Kangaroo — BD", m:"silver", oz:1, mode:"peroz", p:1.00, q:12},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Sunshine Silver Bar", m:"silver", oz:1, mode:"peroz", p:1.00, q:42},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Mercury Silver Round", m:"silver", oz:1, mode:"peroz", p:1.00, q:80},
+  {c:"1-oz Silver Coins, Rounds & Bars", n:"1-oz Buffalo Silver Round", m:"silver", oz:1, mode:"peroz", p:1.00, q:200},
+  {c:"Silver Specialty / At Spot", n:"RCM 0.75-oz Silver War of 1812", m:"silver", oz:0.75, mode:"spotup", p:0, q:26},
+  {c:"Silver Specialty / At Spot", n:"RCM $8 Bison 1.25-oz Silver Coin (tarnish)", m:"silver", oz:1.25, mode:"spot", p:0, q:15},
+  {c:"Silver Specialty / At Spot", n:"1-oz Various Rounds/Coins/Bars (capsules)", m:"silver", oz:1, mode:"spot", p:0, q:76},
+  {c:"Silver Specialty / At Spot", n:"1-oz CMI 50th Anniversary Round", m:"silver", oz:1, mode:"spot", p:0, q:25},
+  {c:"Silver Specialty / At Spot", n:"1-oz OPM Silver Round", m:"silver", oz:1, mode:"spot", p:0, q:24},
+  // ---- GOLD ----
+  {c:"1-oz Gold Coins", n:"1-oz American Gold Eagle — 2026", m:"gold", oz:1, mode:"peroz", p:195, q:2},
+  {c:"1-oz Gold Coins", n:"1-oz American Gold Eagle — BD", m:"gold", oz:1, mode:"peroz", p:100, q:16},
+  {c:"1-oz Gold Coins", n:"1-oz American Buffalo Gold Coin — 2026", m:"gold", oz:1, mode:"peroz", p:185, q:3},
+  {c:"1-oz Gold Coins", n:"1-oz American Buffalo Gold Coin — BD", m:"gold", oz:1, mode:"peroz", p:150, q:1},
+  {c:"1-oz Gold Coins", n:"1-oz Krugerrand Gold Coin — BD", m:"gold", oz:1, mode:"spot", p:0, q:6},
+  {c:"1-oz Gold Coins", n:"1-oz Canadian Gold Maple Leaf — BD", m:"gold", oz:1, mode:"peroz", p:85, q:4},
+  {c:"1-oz Gold Coins", n:"1-oz Merlin Gold Coin .9999 (2023)", m:"gold", oz:1, mode:"spot", p:0, q:1},
+  {c:"1-oz Gold Coins", n:"AGE 2020 Set — 1.85 ozt w/ Silver Eagle", m:"gold", oz:1.85, mode:"percoin", p:225, q:1, u:"set"},
+  {c:"Slabbed & Graded Gold", n:"2011 Medal of Honor $5 Commem Gold (.2419 agw)", m:"gold", oz:0.2419, mode:"percoin", p:49, q:3, u:"coin"},
+  {c:"Slabbed & Graded Gold", n:"1-oz American Gold Eagle — Graded MS 69", m:"gold", oz:1, mode:"peroz", p:150, q:1},
+  {c:"Slabbed & Graded Gold", n:"1/2-oz American Gold Eagle — Graded MS 69", m:"gold", oz:0.5, mode:"peroz", p:50, q:1},
+  {c:"Slabbed & Graded Gold", n:"1/2-oz American Gold Eagle — Graded MS 70", m:"gold", oz:0.5, mode:"peroz", p:65, q:2},
+  {c:"Slabbed & Graded Gold", n:"1/10-oz American Gold Eagle — MS 69", m:"gold", oz:0.1, mode:"pct", p:10, q:1},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"1-oz PAMP 250th Anniversary Gold Bar", m:"gold", oz:1, mode:"percoin", p:70, q:4, u:""},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"1-oz Valcambi Gold Bar", m:"gold", oz:1, mode:"percoin", p:70, q:2, u:""},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"1-oz PAMP Lady of Justice Gold Bar", m:"gold", oz:1, mode:"percoin", p:70, q:2, u:""},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"1-oz Royal Mint Britannia Gold Bar", m:"gold", oz:1, mode:"percoin", p:70, q:2, u:""},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"1-oz Una & Lion Royal Mint Gold Bar", m:"gold", oz:1, mode:"percoin", p:70, q:3, u:""},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"1-oz Credit Suisse Gold Bar", m:"gold", oz:1, mode:"percoin", p:50, q:1, u:""},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"20-gram Valcambi CombiBar", m:"gold", oz:0.6430, mode:"percoin", p:99, q:5, u:"piece"},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"Sunshine 5-gram Gold Bar (assay)", m:"gold", oz:0.1608, mode:"spot", p:0, q:1},
+  {c:"1-oz Gold Bars, 20 g & Misc", n:"Vietnam Gold Bar 37.5 g .9999", m:"gold", oz:1.2056, mode:"spot", p:0, q:2},
+  {c:"Old U.S. Gold", n:"$20 Saint-Gaudens — AU (.9675 agw)", m:"gold", oz:0.9675, mode:"percoin", p:85, q:3, u:"coin"},
+  {c:"Old U.S. Gold", n:"$20 Liberty Gold Coin (.9675 agw)", m:"gold", oz:0.9675, mode:"percoin", p:95, q:2, u:"coin"},
+  {c:"Mexican Gold", n:"Mexican 50 Peso — .900 fine (1.2057 ozt AGW)", m:"gold", oz:1.2057, mode:"peroz", p:39, q:3},
+  {c:"Fractional Gold", n:"1/10-oz American Gold Eagle — BD", m:"gold", oz:0.1, mode:"pct", p:10, q:6},
+  {c:"Fractional Gold", n:"1/10-oz RCM Gold Maple Leaf", m:"gold", oz:0.1, mode:"pct", p:5, q:1},
+  {c:"Fractional Gold", n:"1/100-oz Gold Bar — Monetary Metals", m:"gold", oz:0.01, mode:"spot", p:0, q:7},
+  // ---- PLATINUM / PALLADIUM ----
+  {c:"Platinum & Palladium", n:"1-oz Platinum Maple Leaf Coin", m:"platinum", oz:1, mode:"peroz", p:130, q:1},
+  {c:"Platinum & Palladium", n:"1-oz Platinum Eagle Coin", m:"platinum", oz:1, mode:"peroz", p:200, q:1},
+  {c:"Platinum & Palladium", n:"1-oz Argor-Heraeus Palladium Bar", m:"palladium", oz:1, mode:"peroz", p:100, q:1},
+  // ---- GOLDBACKS ----
+  {c:"Goldbacks", n:"Arizona 100 Goldback", m:"gold", oz:0.1, mode:"flat", p:875, q:1},
+  {c:"Goldbacks", n:"Arizona 50 Goldback", m:"gold", oz:0.05, mode:"flat", p:450, q:2},
+  {c:"Goldbacks", n:"Arizona 25 Goldback", m:"gold", oz:0.025, mode:"flat", p:225, q:2},
+  {c:"Goldbacks", n:"Arizona 10 Goldback", m:"gold", oz:0.01, mode:"flat", p:90, q:4},
+  {c:"Goldbacks", n:"Arizona 2 Goldback", m:"gold", oz:0.002, mode:"flat", p:18, q:15},
+  {c:"Goldbacks", n:"Arizona 1 Goldback", m:"gold", oz:0.001, mode:"flat", p:9, q:40},
+  {c:"Goldbacks", n:"Arizona 1/2 Goldback", m:"gold", oz:0.0005, mode:"flat", p:5, q:40},
+  {c:"Goldbacks", n:"Idaho 1 Goldback", m:"gold", oz:0.001, mode:"flat", p:9, q:40},
+  {c:"Goldbacks", n:"Idaho 1/2 Goldback", m:"gold", oz:0.0005, mode:"flat", p:5, q:40},
+  {c:"Goldbacks", n:"Idaho 1/4 Goldback", m:"gold", oz:0.00025, mode:"flat", p:2.5, q:12},
+  {c:"Goldbacks", n:"Florida 1 Goldback", m:"gold", oz:0.001, mode:"flat", p:9, q:40},
+  {c:"Goldbacks", n:"Florida 1/2 Goldback", m:"gold", oz:0.0005, mode:"flat", p:5, q:40},
+  {c:"Goldbacks", n:"Oklahoma 1/2 Goldback", m:"gold", oz:0.0005, mode:"flat", p:5, q:40},
+  {c:"Goldbacks", n:"South Dakota 1 Goldback", m:"gold", oz:0.001, mode:"flat", p:9, q:40},
+  {c:"Goldbacks", n:"Washington DC 250th Anniversary Goldback", m:"gold", oz:0.001, mode:"flat", p:15, q:35}
+];
+INV.forEach((it,i) => it.id = i);
+
+const APPS_SCRIPT = `function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Orders') || ss.insertSheet('Orders');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['Timestamp','Order ID','Payment','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total']);
+  }
+  var d = JSON.parse(e.postData.contents);
+  d.items.forEach(function(it) {
+    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, it.item, it.qty, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total]);
+  });
+  return ContentService.createTextOutput('ok');
+}`;
+
+// ---- State ----
+let state = {
+  gold: '3998.57', silver: '57.49', plat: '1581.37', pall: '1450.00',
+  q: '', metal: 'all', oz: 'all', spotOnly: false, sort: 'cat',
+  cart: {}, cardFee: false, override: {},
+  cartOpen: false, settingsOpen: false,
+  webhook: '', sending: false, toast: '', toastTimer: null
+};
+
+function loadState() {
+  try { const s = JSON.parse(localStorage.getItem('cmiShowSpot_v1')); if (s) Object.assign(state, {gold:s.gold||state.gold,silver:s.silver||state.silver,plat:s.plat||state.plat,pall:s.pall||state.pall}); } catch(e){}
+  try { const c = JSON.parse(localStorage.getItem('cmiShowCart_v1')); if (c) Object.assign(state, {cart:c.cart||{},cardFee:!!c.cardFee,override:c.override||{}}); } catch(e){}
+  try { const w = localStorage.getItem('cmiSheetWebhook_v1'); if (w) state.webhook = w; } catch(e){}
+}
+
+function saveSpot() { try { localStorage.setItem('cmiShowSpot_v1', JSON.stringify({gold:state.gold,silver:state.silver,plat:state.plat,pall:state.pall})); } catch(e){} }
+function saveCart() { try { localStorage.setItem('cmiShowCart_v1', JSON.stringify({cart:state.cart,cardFee:state.cardFee,override:state.override})); } catch(e){} }
+function saveWebhook(v) { try { localStorage.setItem('cmiSheetWebhook_v1', v.trim()); } catch(e){} }
+
+// ---- Pricing ----
+function pf(s) { const n = parseFloat(s); return isNaN(n) ? 0 : n; }
+function fmt(n) { return '$' + n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmt0(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+function trimNum(p) { return Number.isInteger(p) ? String(p) : p.toFixed(2); }
+function weightStr(oz) { return parseFloat(oz.toFixed(4)) + ' ozt'; }
+function spotFor(m) {
+  return {gold:pf(state.gold),silver:pf(state.silver),platinum:pf(state.plat),palladium:pf(state.pall)}[m] || 0;
+}
+function unitPrice(it, spot) {
+  const melt = spot * it.oz;
+  switch(it.mode) {
+    case 'flat':    return it.p;
+    case 'spot':    return melt;
+    case 'spotup':  return Math.ceil(melt);
+    case 'peroz':   return (spot + it.p) * it.oz;
+    case 'pct':     return melt * (1 + it.p / 100);
+    case 'percoin': return melt + it.p;
+    default:        return melt;
+  }
+}
+function ruleLabel(it) {
+  switch(it.mode) {
+    case 'flat':    return 'Flat price';
+    case 'spot':    return 'At spot';
+    case 'spotup':  return 'At spot · rounded up';
+    case 'peroz':   return 'Spot + $' + trimNum(it.p) + '/ozt';
+    case 'pct':     return 'Spot + ' + it.p + '%';
+    case 'percoin': return 'Spot + $' + it.p + (it.u ? '/'+it.u : '');
+    default:        return '';
+  }
+}
+function accentFor(m) {
+  return {gold:'#BD9B60',silver:'#9DA1A3',platinum:'#6E8CA8',palladium:'#8E7BA6'}[m] || '#BD9B60';
+}
+function matchOz(oz, k) {
+  switch(k) {
+    case 'all': return true; case 'frac': return oz < 1; case '1': return oz === 1;
+    case '2-5': return oz > 1 && oz <= 5; case '10-20': return oz >= 10 && oz <= 20;
+    case 'kilo': return oz > 20 && oz < 36; case '50-100': return oz >= 50 && oz <= 100;
+    case '1000': return oz > 100; default: return true;
+  }
+}
+
+// ---- Cart ops ----
+function addItem(id) {
+  const it = INV[id]; const cur = state.cart[id] || 0;
+  if (it && cur >= it.q && !state.override[id]) return; // blocked at stock
+  state.cart = {...state.cart, [id]: cur + 1};
+  saveCart(); render();
+}
+function overrideAdd(id) {
+  state.override = {...state.override, [id]: true};
+  state.cart = {...state.cart, [id]: (state.cart[id] || 0) + 1};
+  saveCart(); render();
+}
+function decItem(id) {
+  const v = (state.cart[id] || 0) - 1;
+  const c = {...state.cart};
+  if (v <= 0) { delete c[id]; const o = {...state.override}; delete o[id]; state.override = o; }
+  else c[id] = v;
+  state.cart = c; saveCart(); render();
+}
+function clearCart() { state.cart = {}; state.override = {}; saveCart(); render(); }
+function toggleCardFee() { state.cardFee = !state.cardFee; saveCart(); render(); }
+
+function showToast(msg) {
+  if (state.toastTimer) clearTimeout(state.toastTimer);
+  state.toast = msg;
+  render();
+  state.toastTimer = setTimeout(() => { state.toast = ''; render(); }, 4500);
+}
+
+async function recordSale() {
+  const url = (state.webhook || '').trim();
+  if (!url) { state.settingsOpen = true; state.cartOpen = false; showToast('Paste your Google Sheet link, then record the sale.'); return; }
+  if (!Object.keys(state.cart).length || state.sending) return;
+  const items = Object.keys(state.cart).map(idStr => {
+    const it = INV[+idStr]; const spot = spotFor(it.m); const price = unitPrice(it, spot); const qy = state.cart[idStr];
+    return {item:it.n, category:it.c, metal:it.m, qty:qy, unitPrice:+price.toFixed(2), lineTotal:+(price*qy).toFixed(2)};
+  });
+  const subtotal = +items.reduce((a,l) => a+l.lineTotal, 0).toFixed(2);
+  const cardFee = state.cardFee ? +(subtotal*0.03).toFixed(2) : 0;
+  const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.cardFee?'Credit Card':'Cash/Check', cardFeePct:state.cardFee?3:0, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
+  state.sending = true; render();
+  try {
+    await fetch(url, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(order)});
+    state.sending = false; state.cart = {}; state.override = {}; state.cardFee = false; state.cartOpen = false;
+    saveCart(); showToast('Sale recorded to Google Sheet ✓');
+  } catch(e) {
+    state.sending = false; showToast('Could not reach the sheet — check the link in Settings.');
+  }
+}
+
+// ---- Render ----
+function h(tag, attrs, ...children) {
+  const el = document.createElement(tag);
+  if (attrs) Object.entries(attrs).forEach(([k,v]) => {
+    if (k === 'className') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === 'data') Object.entries(v).forEach(([dk,dv]) => el.dataset[dk]=dv);
+    else el.setAttribute(k, v);
+  });
+  children.flat(Infinity).forEach(c => { if (c == null || c === false) return; el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(c) : c); });
+  return el;
+}
+function t(text) { return document.createTextNode(text); }
+
+function renderApp() {
+  const st = state;
+  const gv = pf(st.gold), sv = pf(st.silver);
+
+  // Filter items
+  const qLow = st.q.trim().toLowerCase();
+  const matchItem = it => {
+    if (st.metal === 'goldback') { if (it.c !== 'Goldbacks') return false; }
+    else if (st.metal !== 'all') { if (it.m !== st.metal) return false; }
+    if (!matchOz(it.oz, st.oz)) return false;
+    if (st.spotOnly && it.mode !== 'spot' && it.mode !== 'spotup') return false;
+    if (qLow && !(it.n+' '+it.c).toLowerCase().includes(qLow)) return false;
+    return true;
+  };
+
+  const shown = INV.filter(matchItem);
+  const enriched = shown.map(it => {
+    const spot = spotFor(it.m); const melt = spot * it.oz; const price = unitPrice(it, spot);
+    const prem = price - melt; const pct = melt > 0 ? (prem/melt)*100 : 0;
+    const isFlat = it.mode === 'flat'; const hasPrem = !isFlat && it.mode !== 'spot' && it.mode !== 'spotup';
+    const sign = prem >= 0 ? '+' : '−';
+    const cq = st.cart[it.id] || 0; const ov = !!(st.override[it.id]);
+    return { it, price, melt, prem, pct, isFlat, hasPrem, sign,
+      premStr: sign+fmt(Math.abs(prem))+'  ·  '+sign+Math.abs(pct).toFixed(1)+'%',
+      cq, ov, over: cq > it.q, atMax: cq >= it.q && !ov,
+      _val: price * it.q
+    };
+  });
+
+  const totalValue = enriched.reduce((a,r) => a + r._val, 0);
+
+  // Sort / group
+  let rows = [];
+  if (st.sort === 'cat') {
+    const order = [];
+    INV.forEach(it => { if (!order.includes(it.c)) order.push(it.c); });
+    order.forEach(cat => {
+      const group = enriched.filter(r => r.it.c === cat);
+      if (group.length) { rows.push({isHeader:true, cat, count:group.length}); rows = rows.concat(group); }
+    });
+  } else {
+    rows = enriched.slice().sort((a,b) => st.sort === 'plow' ? a.price-b.price : b.price-a.price);
+  }
+
+  // Cart totals
+  const cartItems = Object.keys(st.cart);
+  const cartLines = cartItems.map(idStr => {
+    const it = INV[+idStr]; if (!it) return null;
+    const spot = spotFor(it.m); const price = unitPrice(it, spot); const qy = st.cart[idStr];
+    return {it, price, qy, line: price*qy};
+  }).filter(Boolean);
+  const cartCount = cartLines.reduce((a,l) => a+l.qy, 0);
+  const cartSub = cartLines.reduce((a,l) => a+l.line, 0);
+  const cartFee = st.cardFee ? cartSub*0.03 : 0;
+  const cartGrand = cartSub + cartFee;
+
+  const metals = [['all','All'],['gold','Gold'],['silver','Silver'],['platinum','Platinum'],['palladium','Palladium'],['goldback','Goldbacks']];
+  const ozOpts = [['all','Any weight'],['frac','Under 1 oz'],['1','1 oz'],['2-5','2–5 oz'],['10-20','10–20 oz'],['kilo','Kilo (~32 oz)'],['50-100','50–100 oz'],['1000','1000 oz +']];
+
+  // Build DOM
+  const frag = document.createDocumentFragment();
+
+  // Header
+  frag.appendChild(h('div',{className:'header'},
+    h('div',{style:'display:flex;align-items:center;gap:8px;'},
+      h('div',{className:'header-logo-text'},'CMI Gold & Silver')
+    ),
+    h('div',{className:'header-right'},
+      h('div',{className:'header-title'},
+        h('div',{className:'header-title-main'},'Show Price Book'),
+        h('div',{className:'header-title-sub'},'Columbus, OH · June 2026')
+      ),
+      h('button',{className:'settings-btn',onClick:()=>{state.settingsOpen=true;render();}},'⚙')
+    )
+  ));
+
+  // Controls
+  const controls = h('div',{className:'controls'});
+  const spotRow = h('div',{className:'spot-row'});
+  spotRow.appendChild(h('div',{className:'spot-label'},
+    h('span',{className:'spot-label-text'},'Spot — $ / troy oz'),
+    h('span',{className:'ratio-text'},'G/S ratio ',h('strong',{style:'color:var(--dark-gray)'},sv>0?(gv/sv).toFixed(1):'—'))
+  ));
+  const spotGrid = h('div',{className:'spot-grid'});
+  [['gold','Gold','gold',st.gold,v=>{state.gold=v;saveSpot();render();}],
+   ['silver','Silver','silver',st.silver,v=>{state.silver=v;saveSpot();render();}]].forEach(([m,label,cls,val,onChange])=>{
+    const field = h('div',{className:'spot-field'});
+    field.appendChild(h('span',{className:`spot-field-label ${cls}`},label));
+    const wrap = h('div',{className:'spot-input-wrap'});
+    wrap.appendChild(h('span',{className:'spot-dollar'},'$'));
+    const inp = h('input',{id:`spot-${m}`,type:'text',inputmode:'decimal',className:'spot-input',value:val});
+    inp.addEventListener('input',e=>onChange(e.target.value));
+    wrap.appendChild(inp);
+    field.appendChild(wrap);
+    spotGrid.appendChild(field);
+  });
+  spotRow.appendChild(spotGrid);
+  const spotGridSm = h('div',{className:'spot-grid-sm'});
+  [['plat','Platinum','plat',st.plat,v=>{state.plat=v;saveSpot();render();}],
+   ['pall','Palladium','pall',st.pall,v=>{state.pall=v;saveSpot();render();}]].forEach(([m,label,cls,val,onChange])=>{
+    const wrap2 = h('div',{className:'spot-inline'});
+    wrap2.appendChild(h('span',{className:`spot-field-label ${cls}`,style:'min-width:54px;'},label));
+    const iw = h('div',{className:'spot-input-wrap sm',style:'flex:1;'});
+    iw.appendChild(h('span',{className:'spot-dollar sm'},'$'));
+    const inp2 = h('input',{id:`spot-${m}`,type:'text',inputmode:'decimal',className:'spot-input sm',value:val});
+    inp2.addEventListener('input',e=>onChange(e.target.value));
+    iw.appendChild(inp2);
+    wrap2.appendChild(iw);
+    spotGridSm.appendChild(wrap2);
+  });
+  spotRow.appendChild(spotGridSm);
+  controls.appendChild(spotRow);
+
+  const filterRow = h('div',{className:'filter-row'});
+  // Search
+  const srchWrap = h('div',{className:'search-wrap'});
+  srchWrap.appendChild(h('span',{className:'search-icon'},'⌕'));
+  const srchInp = h('input',{type:'text',className:'search-input',placeholder:'Search products — eagle, 10 oz, maple…',value:st.q});
+  srchInp.addEventListener('input',e=>{state.q=e.target.value;render();});
+  srchWrap.appendChild(srchInp);
+  if (st.q) { const clr=h('span',{className:'search-clear',onClick:()=>{state.q='';render();}},'✕'); srchWrap.appendChild(clr); }
+  filterRow.appendChild(srchWrap);
+  // Metal chips
+  const chipRow = h('div',{className:'chip-row scroll-x'});
+  metals.forEach(([k,label])=>{
+    const chip = h('button',{className:'chip '+(st.metal===k?'active':'inactive'),onClick:()=>{state.metal=k;render();}},label);
+    chipRow.appendChild(chip);
+  });
+  filterRow.appendChild(chipRow);
+  // Selects + spot toggle
+  const selRow = h('div',{className:'filter-selects'});
+  const ozSel = h('select',{className:'filter-select'});
+  ozOpts.forEach(([k,label])=>{ const o=h('option',{value:k},label); if(st.oz===k)o.selected=true; ozSel.appendChild(o); });
+  ozSel.addEventListener('change',e=>{state.oz=e.target.value;render();});
+  selRow.appendChild(ozSel);
+  const sortSel = h('select',{className:'filter-select'});
+  [['cat','Group: Category'],['plow','Price: low → high'],['phigh','Price: high → low']].forEach(([k,label])=>{ const o=h('option',{value:k},label); if(st.sort===k)o.selected=true; sortSel.appendChild(o); });
+  sortSel.addEventListener('change',e=>{state.sort=e.target.value;render();});
+  selRow.appendChild(sortSel);
+  const spotToggle = h('button',{className:'spot-toggle chip '+(st.spotOnly?'active':'inactive'),onClick:()=>{state.spotOnly=!state.spotOnly;render();}},'At spot');
+  selRow.appendChild(spotToggle);
+  filterRow.appendChild(selRow);
+  controls.appendChild(filterRow);
+  frag.appendChild(controls);
+
+  // Summary strip
+  frag.appendChild(h('div',{className:'summary'},
+    h('span',{className:'summary-count'},shown.length+' products'),
+    h('span',{className:'summary-value'},fmt0(totalValue)+' on hand')
+  ));
+
+  // Product list
+  const list = h('div',{className:'list'});
+  if (rows.length === 0) {
+    list.appendChild(h('div',{className:'empty-msg'},'No products match your filters.'));
+  } else {
+    rows.forEach(row => {
+      if (row.isHeader) {
+        list.appendChild(h('div',{className:'cat-header'},
+          h('span',{className:'cat-label'},row.cat),
+          h('span',{style:'flex:1;height:1px;'}),
+          h('span',{className:'cat-count'},row.count+(row.count===1?' item':' items'))
+        ));
+      } else {
+        const {it,price,melt,isFlat,hasPrem,premStr,cq,ov,over,atMax} = row;
+        const card = h('div',{className:'item-card',style:`border-left-color:${accentFor(it.m)};border-left-width:3px;`});
+        // Top row
+        const top = h('div',{className:'item-top'});
+        const left = h('div',{className:'item-left'});
+        left.appendChild(h('div',{className:'item-name'},it.n));
+        const badges = h('div',{className:'item-badges'});
+        badges.appendChild(h('span',{className:'badge-weight'},weightStr(it.oz)));
+        badges.appendChild(h('span',{className:'badge-qty'},it.q+' in stock'));
+        if (it.mode==='spot'||it.mode==='spotup') badges.appendChild(h('span',{className:'badge-spot'},'Spot'));
+        if (over) badges.appendChild(h('span',{className:'badge-over'},'Over stock'));
+        left.appendChild(badges);
+        top.appendChild(left);
+        const right = h('div',{className:'item-right'});
+        right.appendChild(h('div',{className:'item-price'},fmt(price)));
+        right.appendChild(h('div',{className:'item-rule'},ruleLabel(it)));
+        top.appendChild(right);
+        card.appendChild(top);
+        // Melt line
+        if (melt > 0 && !isFlat) {
+          card.appendChild(h('div',{className:'melt-row'},
+            h('span',{className:'melt-val'},'Melt '+fmt(melt)),
+            h('span',{className:'prem-val'},premStr)
+          ));
+        }
+        // Below melt warning
+        if (hasPrem && price+0.005 < melt) {
+          card.appendChild(h('div',{className:'below-melt'},'⚠ Price is below melt — adjust this item for current spot.'));
+        }
+        // Actions
+        const actions = h('div',{className:'item-actions'});
+        if (cq > 0) {
+          const inCartRow = h('div',{className:'in-cart-row'});
+          const inCartTop = h('div',{className:'in-cart-top'});
+          inCartTop.appendChild(h('span',{className:'in-cart-label'},'In order: ',h('strong',{style:'color:var(--navy);'},fmt(price*cq))));
+          const stepper = h('div',{className:'stepper'});
+          stepper.appendChild(h('button',{className:'step-btn',onClick:()=>decItem(it.id)},'−'));
+          stepper.appendChild(h('span',{className:'step-qty'},cq));
+          const incBtn = h('button',{className:`step-btn ${atMax?'step-inc-max':'step-inc-norm'}`,onClick:()=>atMax?overrideAdd(it.id):addItem(it.id)},'＋');
+          stepper.appendChild(incBtn);
+          inCartTop.appendChild(stepper);
+          inCartRow.appendChild(inCartTop);
+          if (atMax) inCartRow.appendChild(h('span',{className:'at-max-hint'},'At stock limit ('+it.q+') — tap ＋ to override'));
+          if (over) inCartRow.appendChild(h('span',{className:'over-hint'},'Over stock by '+(cq-it.q)));
+          actions.appendChild(inCartRow);
+        } else {
+          actions.appendChild(h('button',{className:'add-btn',onClick:()=>addItem(it.id)},'＋ Add'));
+        }
+        card.appendChild(actions);
+        list.appendChild(card);
+      }
+    });
+  }
+  list.appendChild(h('p',{className:'footnote'},'Prices recalculate live from the spot fields above. Old U.S. coins, the Mexican 50 Peso and other partial-bullion items are priced on their actual fine-metal content. Confirm spot before quoting.'));
+  frag.appendChild(list);
+
+  // Cart bar
+  if (cartCount > 0) {
+    frag.appendChild(h('div',{className:'cart-bar',onClick:()=>{state.cartOpen=true;render();}},
+      h('div',{className:'cart-bar-left'},
+        h('span',{className:'cart-bar-count'},cartCount+(cartCount===1?' item selected':' items selected')),
+        h('span',{className:'cart-bar-total'},fmt(cartGrand))
+      ),
+      h('span',{className:'cart-bar-cta'},'View order →')
+    ));
+  }
+
+  // Cart sheet
+  if (st.cartOpen) {
+    frag.appendChild(h('div',{className:'overlay',onClick:()=>{state.cartOpen=false;render();}}));
+    const sheet = h('div',{className:'sheet'});
+    sheet.appendChild(h('div',{className:'sheet-header'},
+      h('span',{className:'sheet-title'},'Your Order'),
+      h('span',{className:'sheet-close',onClick:()=>{state.cartOpen=false;render();}},'✕')
+    ));
+    const body = h('div',{className:'sheet-body'});
+    cartLines.forEach(({it,price,qy,line})=>{
+      const ov2 = !!(st.override[it.id]); const atMax2 = qy>=it.q&&!ov2; const over2=qy>it.q;
+      const ln = h('div',{className:'order-line'});
+      const info = h('div',{className:'order-line-info'});
+      info.appendChild(h('div',{className:'order-line-name'},it.n));
+      info.appendChild(h('div',{className:'order-line-sub'},fmt(price)+' ea · '+ruleLabel(it)));
+      if (over2) info.appendChild(h('div',{style:'font-size:11px;color:var(--warn-text);margin-top:3px;'},'⚠ Over stock by '+(qy-it.q)+' ('+it.q+' on hand)'));
+      ln.appendChild(info);
+      const st2 = h('div',{className:'stepper'});
+      st2.appendChild(h('button',{className:'step-btn sm',onClick:()=>decItem(it.id)},'−'));
+      st2.appendChild(h('span',{className:'step-qty sm'},qy));
+      st2.appendChild(h('button',{className:`step-btn sm ${atMax2?'step-inc-max':'step-inc-norm'}`,onClick:()=>atMax2?overrideAdd(it.id):addItem(it.id)},'＋'));
+      ln.appendChild(st2);
+      ln.appendChild(h('div',{className:'order-line-total'},fmt(line)));
+      body.appendChild(ln);
+    });
+    sheet.appendChild(body);
+    const footer = h('div',{className:'sheet-footer'});
+    footer.appendChild(h('div',{className:'totals-row'},h('span',null,'Subtotal'),h('span',null,fmt(cartSub))));
+    const feeStyle = 'width:100%;padding:12px;border-radius:2px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;'+(st.cardFee?'border:1px solid var(--navy);background:var(--navy);color:#fff;':'border:1px solid var(--navy);background:#fff;color:var(--navy);');
+    footer.appendChild(h('button',{style:feeStyle,onClick:()=>toggleCardFee()},st.cardFee?'✓  Credit card fee applied (+3%)':'Add credit card fee (+3%)'));
+    if (st.cardFee) footer.appendChild(h('div',{className:'totals-row',style:'margin-top:10px;'},h('span',null,'Credit card fee (3%)'),h('span',null,fmt(cartFee))));
+    footer.appendChild(h('div',{className:'grand-row'},
+      h('span',{className:'grand-label'},'Total'),
+      h('span',{className:'grand-total'},fmt(cartGrand))
+    ));
+    footer.appendChild(h('button',{className:'record-btn',onClick:()=>recordSale()},st.sending?'Recording…':(st.webhook?'Record sale → Google Sheet':'Connect Google Sheet to record')));
+    footer.appendChild(h('div',{className:'secondary-btns'},
+      h('button',{className:'secondary-btn',onClick:()=>{clearCart();state.cartOpen=false;render();}},'Clear'),
+      h('button',{className:'secondary-btn',onClick:()=>{state.cartOpen=false;render();}},'Close')
+    ));
+    sheet.appendChild(footer);
+    frag.appendChild(sheet);
+  }
+
+  // Settings sheet
+  if (st.settingsOpen) {
+    frag.appendChild(h('div',{className:'overlay',onClick:()=>{state.settingsOpen=false;render();}}));
+    const sheet2 = h('div',{className:'sheet',style:'max-height:90vh;'});
+    sheet2.appendChild(h('div',{className:'sheet-header'},
+      h('span',{className:'sheet-title'},'Google Sheet'),
+      h('span',{className:'sheet-close',onClick:()=>{state.settingsOpen=false;render();}},'✕')
+    ));
+    const sb = h('div',{className:'settings-body'});
+    sb.appendChild(h('div',{className:'settings-label'},'Web App URL'));
+    const wi = h('input',{type:'url',className:'webhook-input',placeholder:'https://script.google.com/macros/s/…/exec',value:st.webhook});
+    wi.addEventListener('input',e=>{state.webhook=e.target.value;saveWebhook(e.target.value);});
+    sb.appendChild(wi);
+    sb.appendChild(h('p',{className:'settings-desc'},'Paste your deployed Apps Script Web App link. Each recorded sale appends one row per item — item, qty, unit price, line total, subtotal, the credit-card fee, and order total.'));
+    sb.appendChild(h('div',{className:'steps-label'},'Setup — 4 steps'));
+    const ol = h('ol',{className:'steps-list'});
+    ['In your Google Sheet: Extensions → Apps Script.','Replace the contents with the script below, then save.','Deploy → New deployment → Web app; set access to Anyone; Deploy.','Copy the Web app URL and paste it in the box above.'].forEach(s=>{
+      const li=h('li',null);li.innerHTML=s.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');ol.appendChild(li);
+    });
+    sb.appendChild(ol);
+    const scriptWrap = h('div',{className:'script-wrap'});
+    scriptWrap.appendChild(h('button',{className:'copy-btn',onClick:()=>{ try{navigator.clipboard.writeText(APPS_SCRIPT);showToast('Apps Script copied to clipboard ✓');}catch(e){} }},'Copy'));
+    scriptWrap.appendChild(h('pre',{className:'script-pre'},APPS_SCRIPT));
+    sb.appendChild(scriptWrap);
+    sb.appendChild(h('button',{className:'save-btn',onClick:()=>{state.settingsOpen=false;render();}},'Save & close'));
+    sheet2.appendChild(sb);
+    frag.appendChild(sheet2);
+  }
+
+  // Toast
+  if (st.toast) {
+    frag.appendChild(h('div',{className:'toast'},st.toast));
+  }
+
+  return frag;
+}
+
+function render() {
+  const prev = document.activeElement;
+  const prevId = prev ? prev.id : null;
+  const prevPos = prev && prev.selectionStart != null ? prev.selectionStart : null;
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(renderApp());
+  if (prevId) {
+    const el = document.getElementById(prevId);
+    if (el) { el.focus(); if (prevPos != null && el.setSelectionRange) el.setSelectionRange(prevPos, prevPos); }
+  }
+}
+
+loadState();
+render();
+</script>
+</body>
+</html>
