@@ -852,20 +852,32 @@ async function fetchSpotPrices() {
   const btn = document.getElementById('fetch-btn');
   if (btn) { btn.textContent = '↻  Fetching…'; btn.disabled = true; }
   try {
-    const res = await fetch('https://api.metals.live/v1/spot');
-    if (!res.ok) throw new Error('Network error');
-    const data = await res.json();
-    // data is array of objects like [{gold: 3998.57}, {silver: 57.49}, ...]
-    const map = {};
-    data.forEach(obj => Object.assign(map, obj));
+    let map = {};
+    // Try nFusion Solutions first (requires domain to be registered with the API key)
+    try {
+      const token = 'c9ed1243-5375-4f2b-bb2e-dae05b3ea13f';
+      const res = await fetch(`https://api.nfusionsolutions.biz/api/v1/Metals/spot?token=${token}&currency=USD&format=json`);
+      if (res.ok) {
+        const data = await res.json();
+        data.forEach(item => { if (item.name) map[item.name.toLowerCase()] = item.price; });
+      }
+    } catch(_) {}
+    // Fallback to free API if nFusion didn't return data
+    if (!map.gold && !map.silver) {
+      const res2 = await fetch('https://api.metals.live/v1/spot');
+      if (res2.ok) {
+        const data2 = await res2.json();
+        data2.forEach(obj => Object.assign(map, obj));
+      }
+    }
     let changed = false;
-    if (map.gold)      { state.gold    = map.gold.toFixed(2);    changed = true; }
-    if (map.silver)    { state.silver  = map.silver.toFixed(2);  changed = true; }
-    if (map.platinum)  { state.plat    = map.platinum.toFixed(2); changed = true; }
-    if (map.palladium) { state.pall    = map.palladium.toFixed(2); changed = true; }
+    if (map.gold)      { state.gold    = (+map.gold).toFixed(2);      changed = true; }
+    if (map.silver)    { state.silver  = (+map.silver).toFixed(2);    changed = true; }
+    if (map.platinum)  { state.plat    = (+map.platinum).toFixed(2);  changed = true; }
+    if (map.palladium) { state.pall    = (+map.palladium).toFixed(2); changed = true; }
     if (changed) {
       saveSpot();
-      render(); // full render to update input values
+      render();
       showToast('Live spot prices updated ✓');
     } else {
       showToast('No price data returned — enter manually.');
