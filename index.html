@@ -293,11 +293,11 @@ const APPS_SCRIPT = `function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Orders') || ss.insertSheet('Orders');
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['Timestamp','Order ID','Payment','First Name','Last Name','Email','State','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total']);
+    sheet.appendRow(['Timestamp','Order ID','Payment','First Name','Last Name','Email','State','Subscribe','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total']);
   }
   var d = JSON.parse(e.postData.contents);
   d.items.forEach(function(it) {
-    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, d.custFirst, d.custLast, d.custEmail, d.custState, it.item, it.qty, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total]);
+    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, d.custFirst, d.custLast, d.custEmail, d.custState, d.custSub ? 'Yes' : 'No', it.item, it.qty, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total]);
   });
 
   // Send receipt email if customer provided an email address
@@ -332,7 +332,7 @@ let state = {
   q: '', metal: 'all', oz: 'all', spotOnly: false, sort: 'cat',
   cart: {}, cardFee: false, override: {},
   cartOpen: false, settingsOpen: false,
-  custFirst: '', custLast: '', custEmail: '', custState: '',
+  custFirst: '', custLast: '', custEmail: '', custState: '', custSub: false,
   webhook: '', sending: false, toast: '', toastTimer: null
 };
 
@@ -429,13 +429,13 @@ async function recordSale() {
   });
   const subtotal = +items.reduce((a,l) => a+l.lineTotal, 0).toFixed(2);
   const cardFee = state.cardFee ? +(subtotal*0.03).toFixed(2) : 0;
-  const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.cardFee?'Credit Card':'Cash/Check', cardFeePct:state.cardFee?3:0, custFirst:state.custFirst.trim(), custLast:state.custLast.trim(), custEmail:state.custEmail.trim(), custState:state.custState, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
+  const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.cardFee?'Credit Card':'Cash/Check', cardFeePct:state.cardFee?3:0, custFirst:state.custFirst.trim(), custLast:state.custLast.trim(), custEmail:state.custEmail.trim(), custState:state.custState, custSub:state.custSub, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
   state.sending = true; render();
   try {
     await fetch(url, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(order)});
     const hadEmail = !!state.custEmail.trim();
     state.sending = false; state.cart = {}; state.override = {}; state.cardFee = false; state.cartOpen = false;
-    state.custFirst = ''; state.custLast = ''; state.custEmail = ''; state.custState = '';
+    state.custFirst = ''; state.custLast = ''; state.custEmail = ''; state.custState = ''; state.custSub = false;
     saveCart(); showToast(hadEmail ? 'Sale recorded & receipt emailed ✓' : 'Sale recorded to Google Sheet ✓');
   } catch(e) {
     state.sending = false; showToast('Could not reach the sheet — check the link in Settings.');
@@ -732,7 +732,8 @@ function buildListSection() {
       const f = h('div',{className:'cust-field'});
       f.appendChild(h('label',{className:'cust-label',for:id},label));
       const inp = h('input',{id,type,className:'cust-input',placeholder,value:val});
-      inp.addEventListener('input',e=>{onChange(e.target.value);renderList();});
+      // No re-render on input — just update state silently so keyboard stays open
+      inp.addEventListener('input',e=>onChange(e.target.value));
       f.appendChild(inp);
       return f;
     };
@@ -742,14 +743,23 @@ function buildListSection() {
     const emailRow = h('div',{className:'cust-row single'});
     emailRow.appendChild(mkCustField('cust-email','Email','email',st.custEmail,'jane@example.com',v=>state.custEmail=v));
     custSec.appendChild(emailRow);
-    custSec.appendChild(h('div',{className:'email-note'},'Receipt will be emailed if provided.'));
-    const stateRow = h('div',{className:'cust-row single'});
+    // Subscribe checkbox
+    const subRow = h('div',{style:'display:flex;align-items:center;gap:8px;margin-top:8px;'});
+    const subChk = h('input',{id:'cust-sub',type:'checkbox',style:'width:16px;height:16px;accent-color:var(--navy);cursor:pointer;flex-shrink:0;'});
+    if (st.custSub) subChk.checked = true;
+    subChk.addEventListener('change',e=>{state.custSub=e.target.checked;});
+    const subLabel = h('label',{for:'cust-sub',style:'font-size:12px;color:var(--dark-gray);cursor:pointer;line-height:1.4;'},'Subscribe to CMI Gold & Silver email updates');
+    subRow.appendChild(subChk);
+    subRow.appendChild(subLabel);
+    custSec.appendChild(subRow);
+    custSec.appendChild(h('div',{className:'email-note',style:'margin-top:6px;'},'Receipt emailed if address provided.'));
+    const stateRow = h('div',{className:'cust-row single',style:'margin-top:8px;'});
     const stateField = h('div',{className:'cust-field'});
     stateField.appendChild(h('label',{className:'cust-label',for:'cust-state'},'State'));
     const stateSel = h('select',{id:'cust-state',className:'cust-input'});
     const states = ['','AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
     states.forEach(s => { const o = h('option',{value:s}, s || '— Select state —'); if (st.custState===s) o.selected=true; stateSel.appendChild(o); });
-    stateSel.addEventListener('change',e=>{state.custState=e.target.value;renderList();});
+    stateSel.addEventListener('change',e=>{state.custState=e.target.value;});
     stateField.appendChild(stateSel);
     stateRow.appendChild(stateField);
     custSec.appendChild(stateRow);
