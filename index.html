@@ -162,6 +162,16 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .record-btn{width:100%;margin-top:14px;padding:13px;background:var(--grad-gold);border:none;color:var(--navy);font-size:13px;letter-spacing:0.12em;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
 .secondary-btns{display:flex;gap:10px;margin-top:10px;}
 .secondary-btn{flex:1;padding:11px;background:#fff;border:1px solid var(--border-2);color:var(--dark-gray);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+/* Customer form */
+.cust-section{border-top:1px solid var(--border-2);margin-top:14px;padding-top:14px;}
+.cust-section-label{font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.cust-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.cust-row.single{grid-template-columns:1fr;}
+.cust-field{display:flex;flex-direction:column;gap:4px;}
+.cust-label{font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dark-gray);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.cust-input{border:1px solid var(--border-2);background:#fff;border-radius:2px;padding:9px 10px;font-size:13px;color:var(--navy);width:100%;}
+.cust-input:focus{outline:none;border-color:var(--navy);}
+.email-note{font-size:11px;color:#888;margin-top:2px;font-style:italic;}
 
 /* Settings sheet */
 .settings-body{overflow-y:auto;padding:16px 18px 22px;}
@@ -283,12 +293,36 @@ const APPS_SCRIPT = `function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Orders') || ss.insertSheet('Orders');
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['Timestamp','Order ID','Payment','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total']);
+    sheet.appendRow(['Timestamp','Order ID','Payment','First Name','Last Name','Email','State','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total']);
   }
   var d = JSON.parse(e.postData.contents);
   d.items.forEach(function(it) {
-    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, it.item, it.qty, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total]);
+    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, d.custFirst, d.custLast, d.custEmail, d.custState, it.item, it.qty, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total]);
   });
+
+  // Send receipt email if customer provided an email address
+  if (d.custEmail) {
+    var name = (d.custFirst + ' ' + d.custLast).trim() || 'Valued Customer';
+    var lines = d.items.map(function(it) {
+      return '  ' + it.item + '\\n  Qty: ' + it.qty + '  |  ' + '$' + it.unitPrice.toFixed(2) + ' ea  |  $' + it.lineTotal.toFixed(2);
+    }).join('\\n\\n');
+    var body = 'Hello ' + name + ',\\n\\n'
+      + 'Thank you for your purchase at the CMI Gold & Silver show! Here is your receipt.\\n\\n'
+      + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n'
+      + 'ORDER ' + d.orderId + '\\n'
+      + new Date(d.timestamp).toLocaleString('en-US') + '\\n'
+      + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n\\n'
+      + lines + '\\n\\n'
+      + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n'
+      + 'Subtotal:   $' + d.subtotal.toFixed(2) + '\\n'
+      + (d.cardFee > 0 ? 'Card fee (3%): $' + d.cardFee.toFixed(2) + '\\n' : '')
+      + 'TOTAL:      $' + d.total.toFixed(2) + '\\n'
+      + 'Payment:    ' + d.paymentMethod + '\\n\\n'
+      + 'CMI Gold & Silver | cmi-gold-silver.com | 800-528-1380\\n'
+      + 'Phoenix, AZ';
+    GmailApp.sendEmail(d.custEmail, 'Your CMI Gold & Silver Receipt — Order ' + d.orderId, body);
+  }
+
   return ContentService.createTextOutput('ok');
 }`;
 
@@ -298,6 +332,7 @@ let state = {
   q: '', metal: 'all', oz: 'all', spotOnly: false, sort: 'cat',
   cart: {}, cardFee: false, override: {},
   cartOpen: false, settingsOpen: false,
+  custFirst: '', custLast: '', custEmail: '', custState: '',
   webhook: '', sending: false, toast: '', toastTimer: null
 };
 
@@ -394,12 +429,14 @@ async function recordSale() {
   });
   const subtotal = +items.reduce((a,l) => a+l.lineTotal, 0).toFixed(2);
   const cardFee = state.cardFee ? +(subtotal*0.03).toFixed(2) : 0;
-  const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.cardFee?'Credit Card':'Cash/Check', cardFeePct:state.cardFee?3:0, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
+  const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.cardFee?'Credit Card':'Cash/Check', cardFeePct:state.cardFee?3:0, custFirst:state.custFirst.trim(), custLast:state.custLast.trim(), custEmail:state.custEmail.trim(), custState:state.custState, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
   state.sending = true; render();
   try {
     await fetch(url, {method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(order)});
+    const hadEmail = !!state.custEmail.trim();
     state.sending = false; state.cart = {}; state.override = {}; state.cardFee = false; state.cartOpen = false;
-    saveCart(); showToast('Sale recorded to Google Sheet ✓');
+    state.custFirst = ''; state.custLast = ''; state.custEmail = ''; state.custState = '';
+    saveCart(); showToast(hadEmail ? 'Sale recorded & receipt emailed ✓' : 'Sale recorded to Google Sheet ✓');
   } catch(e) {
     state.sending = false; showToast('Could not reach the sheet — check the link in Settings.');
   }
@@ -687,6 +724,36 @@ function buildListSection() {
     sheet.appendChild(body);
     const footer = h('div',{className:'sheet-footer'});
     footer.appendChild(h('div',{className:'totals-row'},h('span',null,'Subtotal'),h('span',null,fmt(cartSub))));
+    // Customer info section
+    const custSec = h('div',{className:'cust-section'});
+    custSec.appendChild(h('div',{className:'cust-section-label'},'Customer Info (optional)'));
+    const nameRow = h('div',{className:'cust-row'});
+    const mkCustField = (id, label, type, val, placeholder, onChange) => {
+      const f = h('div',{className:'cust-field'});
+      f.appendChild(h('label',{className:'cust-label',for:id},label));
+      const inp = h('input',{id,type,className:'cust-input',placeholder,value:val});
+      inp.addEventListener('input',e=>{onChange(e.target.value);renderList();});
+      f.appendChild(inp);
+      return f;
+    };
+    nameRow.appendChild(mkCustField('cust-first','First Name','text',st.custFirst,'Jane',v=>state.custFirst=v));
+    nameRow.appendChild(mkCustField('cust-last','Last Name','text',st.custLast,'Smith',v=>state.custLast=v));
+    custSec.appendChild(nameRow);
+    const emailRow = h('div',{className:'cust-row single'});
+    emailRow.appendChild(mkCustField('cust-email','Email','email',st.custEmail,'jane@example.com',v=>state.custEmail=v));
+    custSec.appendChild(emailRow);
+    custSec.appendChild(h('div',{className:'email-note'},'Receipt will be emailed if provided.'));
+    const stateRow = h('div',{className:'cust-row single'});
+    const stateField = h('div',{className:'cust-field'});
+    stateField.appendChild(h('label',{className:'cust-label',for:'cust-state'},'State'));
+    const stateSel = h('select',{id:'cust-state',className:'cust-input'});
+    const states = ['','AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+    states.forEach(s => { const o = h('option',{value:s}, s || '— Select state —'); if (st.custState===s) o.selected=true; stateSel.appendChild(o); });
+    stateSel.addEventListener('change',e=>{state.custState=e.target.value;renderList();});
+    stateField.appendChild(stateSel);
+    stateRow.appendChild(stateField);
+    custSec.appendChild(stateRow);
+    footer.appendChild(custSec);
     const feeStyle = 'width:100%;padding:12px;border-radius:2px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;'+(st.cardFee?'border:1px solid var(--navy);background:var(--navy);color:#fff;':'border:1px solid var(--navy);background:#fff;color:var(--navy);');
     footer.appendChild(h('button',{style:feeStyle,onClick:()=>toggleCardFee()},st.cardFee?'✓  Credit card fee applied (+3%)':'Add credit card fee (+3%)'));
     if (st.cardFee) footer.appendChild(h('div',{className:'totals-row',style:'margin-top:10px;'},h('span',null,'Credit card fee (3%)'),h('span',null,fmt(cartFee))));
