@@ -292,8 +292,10 @@ INV.forEach((it,i) => it.id = i);
 const APPS_SCRIPT = `function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Orders') || ss.insertSheet('Orders');
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['Timestamp','Order ID','Payment','First Name','Last Name','Email','State','Subscribe','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total']);
+  var headers = ['Timestamp','Order ID','Payment','First Name','Last Name','Email','State','Subscribe','Item','Qty','Unit Price','Line Total','Subtotal','Card Fee','Order Total'];
+  if (sheet.getLastRow() === 0 || sheet.getRange(1,1).getValue() !== 'Timestamp' || sheet.getLastColumn() < headers.length) {
+    if (sheet.getLastRow() > 0) sheet.getRange(1, 1, 1, sheet.getLastColumn()).clearContent();
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   var d = JSON.parse(e.parameter.payload || e.postData.contents);
   d.items.forEach(function(it) {
