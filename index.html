@@ -424,58 +424,6 @@ function renderApp() {
   const st = state;
   const gv = pf(st.gold), sv = pf(st.silver);
 
-  // Filter items
-  const qLow = st.q.trim().toLowerCase();
-  const matchItem = it => {
-    if (st.metal === 'goldback') { if (it.c !== 'Goldbacks') return false; }
-    else if (st.metal !== 'all') { if (it.m !== st.metal) return false; }
-    if (!matchOz(it.oz, st.oz)) return false;
-    if (st.spotOnly && it.mode !== 'spot' && it.mode !== 'spotup') return false;
-    if (qLow && !(it.n+' '+it.c).toLowerCase().includes(qLow)) return false;
-    return true;
-  };
-
-  const shown = INV.filter(matchItem);
-  const enriched = shown.map(it => {
-    const spot = spotFor(it.m); const melt = spot * it.oz; const price = unitPrice(it, spot);
-    const prem = price - melt; const pct = melt > 0 ? (prem/melt)*100 : 0;
-    const isFlat = it.mode === 'flat'; const hasPrem = !isFlat && it.mode !== 'spot' && it.mode !== 'spotup';
-    const sign = prem >= 0 ? '+' : '−';
-    const cq = st.cart[it.id] || 0; const ov = !!(st.override[it.id]);
-    return { it, price, melt, prem, pct, isFlat, hasPrem, sign,
-      premStr: sign+fmt(Math.abs(prem))+'  ·  '+sign+Math.abs(pct).toFixed(1)+'%',
-      cq, ov, over: cq > it.q, atMax: cq >= it.q && !ov,
-      _val: price * it.q
-    };
-  });
-
-  const totalValue = enriched.reduce((a,r) => a + r._val, 0);
-
-  // Sort / group
-  let rows = [];
-  if (st.sort === 'cat') {
-    const order = [];
-    INV.forEach(it => { if (!order.includes(it.c)) order.push(it.c); });
-    order.forEach(cat => {
-      const group = enriched.filter(r => r.it.c === cat);
-      if (group.length) { rows.push({isHeader:true, cat, count:group.length}); rows = rows.concat(group); }
-    });
-  } else {
-    rows = enriched.slice().sort((a,b) => st.sort === 'plow' ? a.price-b.price : b.price-a.price);
-  }
-
-  // Cart totals
-  const cartItems = Object.keys(st.cart);
-  const cartLines = cartItems.map(idStr => {
-    const it = INV[+idStr]; if (!it) return null;
-    const spot = spotFor(it.m); const price = unitPrice(it, spot); const qy = st.cart[idStr];
-    return {it, price, qy, line: price*qy};
-  }).filter(Boolean);
-  const cartCount = cartLines.reduce((a,l) => a+l.qy, 0);
-  const cartSub = cartLines.reduce((a,l) => a+l.line, 0);
-  const cartFee = st.cardFee ? cartSub*0.03 : 0;
-  const cartGrand = cartSub + cartFee;
-
   const metals = [['all','All'],['gold','Gold'],['silver','Silver'],['platinum','Platinum'],['palladium','Palladium'],['goldback','Goldbacks']];
   const ozOpts = [['all','Any weight'],['frac','Under 1 oz'],['1','1 oz'],['2-5','2–5 oz'],['10-20','10–20 oz'],['kilo','Kilo (~32 oz)'],['50-100','50–100 oz'],['1000','1000 oz +']];
 
@@ -499,13 +447,14 @@ function renderApp() {
   // Controls
   const controls = h('div',{className:'controls'});
   const spotRow = h('div',{className:'spot-row'});
+  const ratioSpan = h('strong',{style:'color:var(--dark-gray)'},sv>0?(gv/sv).toFixed(1):'—');
   spotRow.appendChild(h('div',{className:'spot-label'},
     h('span',{className:'spot-label-text'},'Spot — $ / troy oz'),
-    h('span',{className:'ratio-text'},'G/S ratio ',h('strong',{style:'color:var(--dark-gray)'},sv>0?(gv/sv).toFixed(1):'—'))
+    h('span',{className:'ratio-text'},'G/S ratio ',ratioSpan)
   ));
   const spotGrid = h('div',{className:'spot-grid'});
-  [['gold','Gold','gold',st.gold,v=>{state.gold=v;saveSpot();render();}],
-   ['silver','Silver','silver',st.silver,v=>{state.silver=v;saveSpot();render();}]].forEach(([m,label,cls,val,onChange])=>{
+  [['gold','Gold','gold',st.gold,v=>{state.gold=v;saveSpot();renderList();}],
+   ['silver','Silver','silver',st.silver,v=>{state.silver=v;saveSpot();renderList();}]].forEach(([m,label,cls,val,onChange])=>{
     const field = h('div',{className:'spot-field'});
     field.appendChild(h('span',{className:`spot-field-label ${cls}`},label));
     const wrap = h('div',{className:'spot-input-wrap'});
@@ -518,8 +467,8 @@ function renderApp() {
   });
   spotRow.appendChild(spotGrid);
   const spotGridSm = h('div',{className:'spot-grid-sm'});
-  [['plat','Platinum','plat',st.plat,v=>{state.plat=v;saveSpot();render();}],
-   ['pall','Palladium','pall',st.pall,v=>{state.pall=v;saveSpot();render();}]].forEach(([m,label,cls,val,onChange])=>{
+  [['plat','Platinum','plat',st.plat,v=>{state.plat=v;saveSpot();renderList();}],
+   ['pall','Palladium','pall',st.pall,v=>{state.pall=v;saveSpot();renderList();}]].forEach(([m,label,cls,val,onChange])=>{
     const wrap2 = h('div',{className:'spot-inline'});
     wrap2.appendChild(h('span',{className:`spot-field-label ${cls}`,style:'min-width:54px;'},label));
     const iw = h('div',{className:'spot-input-wrap sm',style:'flex:1;'});
@@ -531,6 +480,9 @@ function renderApp() {
     spotGridSm.appendChild(wrap2);
   });
   spotRow.appendChild(spotGridSm);
+  // Live fetch button
+  const fetchBtn = h('button',{id:'fetch-btn',style:'margin:6px 0 2px;width:100%;padding:8px;background:#fff;border:1px solid var(--border-2);border-radius:2px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dark-gray);cursor:pointer;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;',onClick:()=>fetchSpotPrices()},'↻  Fetch Live Spot Prices');
+  spotRow.appendChild(fetchBtn);
   controls.appendChild(spotRow);
 
   const filterRow = h('div',{className:'filter-row'});
@@ -565,8 +517,64 @@ function renderApp() {
   controls.appendChild(filterRow);
   frag.appendChild(controls);
 
+  frag.appendChild(buildListSection());
+
+  return frag;
+}
+
+function buildListSection() {
+  const st = state;
+  const gv = pf(st.gold), sv = pf(st.silver);
+
+  const qLow = st.q.trim().toLowerCase();
+  const matchItem = it => {
+    if (st.metal === 'goldback') { if (it.c !== 'Goldbacks') return false; }
+    else if (st.metal !== 'all') { if (it.m !== st.metal) return false; }
+    if (!matchOz(it.oz, st.oz)) return false;
+    if (st.spotOnly && it.mode !== 'spot' && it.mode !== 'spotup') return false;
+    if (qLow && !(it.n+' '+it.c).toLowerCase().includes(qLow)) return false;
+    return true;
+  };
+  const shown = INV.filter(matchItem);
+  const enriched = shown.map(it => {
+    const spot = spotFor(it.m); const melt = spot * it.oz; const price = unitPrice(it, spot);
+    const prem = price - melt; const pct = melt > 0 ? (prem/melt)*100 : 0;
+    const isFlat = it.mode === 'flat'; const hasPrem = !isFlat && it.mode !== 'spot' && it.mode !== 'spotup';
+    const sign = prem >= 0 ? '+' : '−';
+    const cq = st.cart[it.id] || 0; const ov = !!(st.override[it.id]);
+    return { it, price, melt, prem, pct, isFlat, hasPrem, sign,
+      premStr: sign+fmt(Math.abs(prem))+'  ·  '+sign+Math.abs(pct).toFixed(1)+'%',
+      cq, ov, over: cq > it.q, atMax: cq >= it.q && !ov,
+      _val: price * it.q
+    };
+  });
+  const totalValue = enriched.reduce((a,r) => a + r._val, 0);
+  let rows = [];
+  if (st.sort === 'cat') {
+    const order = [];
+    INV.forEach(it => { if (!order.includes(it.c)) order.push(it.c); });
+    order.forEach(cat => {
+      const group = enriched.filter(r => r.it.c === cat);
+      if (group.length) { rows.push({isHeader:true, cat, count:group.length}); rows = rows.concat(group); }
+    });
+  } else {
+    rows = enriched.slice().sort((a,b) => st.sort === 'plow' ? a.price-b.price : b.price-a.price);
+  }
+  const cartItems = Object.keys(st.cart);
+  const cartLines = cartItems.map(idStr => {
+    const it = INV[+idStr]; if (!it) return null;
+    const spot = spotFor(it.m); const price = unitPrice(it, spot); const qy = st.cart[idStr];
+    return {it, price, qy, line: price*qy};
+  }).filter(Boolean);
+  const cartCount = cartLines.reduce((a,l) => a+l.qy, 0);
+  const cartSub = cartLines.reduce((a,l) => a+l.line, 0);
+  const cartFee = st.cardFee ? cartSub*0.03 : 0;
+  const cartGrand = cartSub + cartFee;
+
+  const wrap = h('div',{id:'list-section'});
+
   // Summary strip
-  frag.appendChild(h('div',{className:'summary'},
+  wrap.appendChild(h('div',{className:'summary'},
     h('span',{className:'summary-count'},shown.length+' products'),
     h('span',{className:'summary-value'},fmt0(totalValue)+' on hand')
   ));
@@ -638,11 +646,11 @@ function renderApp() {
     });
   }
   list.appendChild(h('p',{className:'footnote'},'Prices recalculate live from the spot fields above. Old U.S. coins, the Mexican 50 Peso and other partial-bullion items are priced on their actual fine-metal content. Confirm spot before quoting.'));
-  frag.appendChild(list);
+  wrap.appendChild(list);
 
   // Cart bar
   if (cartCount > 0) {
-    frag.appendChild(h('div',{className:'cart-bar',onClick:()=>{state.cartOpen=true;render();}},
+    wrap.appendChild(h('div',{className:'cart-bar',onClick:()=>{state.cartOpen=true;render();}},
       h('div',{className:'cart-bar-left'},
         h('span',{className:'cart-bar-count'},cartCount+(cartCount===1?' item selected':' items selected')),
         h('span',{className:'cart-bar-total'},fmt(cartGrand))
@@ -653,7 +661,7 @@ function renderApp() {
 
   // Cart sheet
   if (st.cartOpen) {
-    frag.appendChild(h('div',{className:'overlay',onClick:()=>{state.cartOpen=false;render();}}));
+    wrap.appendChild(h('div',{className:'overlay',onClick:()=>{state.cartOpen=false;render();}}));
     const sheet = h('div',{className:'sheet'});
     sheet.appendChild(h('div',{className:'sheet-header'},
       h('span',{className:'sheet-title'},'Your Order'),
@@ -692,12 +700,12 @@ function renderApp() {
       h('button',{className:'secondary-btn',onClick:()=>{state.cartOpen=false;render();}},'Close')
     ));
     sheet.appendChild(footer);
-    frag.appendChild(sheet);
+    wrap.appendChild(sheet);
   }
 
   // Settings sheet
   if (st.settingsOpen) {
-    frag.appendChild(h('div',{className:'overlay',onClick:()=>{state.settingsOpen=false;render();}}));
+    wrap.appendChild(h('div',{className:'overlay',onClick:()=>{state.settingsOpen=false;render();}}));
     const sheet2 = h('div',{className:'sheet',style:'max-height:90vh;'});
     sheet2.appendChild(h('div',{className:'sheet-header'},
       h('span',{className:'sheet-title'},'Google Sheet'),
@@ -721,27 +729,61 @@ function renderApp() {
     sb.appendChild(scriptWrap);
     sb.appendChild(h('button',{className:'save-btn',onClick:()=>{state.settingsOpen=false;render();}},'Save & close'));
     sheet2.appendChild(sb);
-    frag.appendChild(sheet2);
+    wrap.appendChild(sheet2);
   }
 
   // Toast
   if (st.toast) {
-    frag.appendChild(h('div',{className:'toast'},st.toast));
+    wrap.appendChild(h('div',{className:'toast'},st.toast));
   }
 
-  return frag;
+  return wrap;
+}
+
+function renderList() {
+  // Only rebuilds the list section — leaves spot inputs untouched so keyboard stays open
+  let listEl = document.getElementById('list-section');
+  if (!listEl) { render(); return; }
+  const newList = buildListSection();
+  listEl.parentNode.replaceChild(newList, listEl);
+  // Update ratio display without touching inputs
+  const ratioEl = document.querySelector('.ratio-text strong');
+  const gv = pf(state.gold), sv = pf(state.silver);
+  if (ratioEl) ratioEl.textContent = sv > 0 ? (gv/sv).toFixed(1) : '—';
 }
 
 function render() {
-  const prev = document.activeElement;
-  const prevId = prev ? prev.id : null;
-  const prevPos = prev && prev.selectionStart != null ? prev.selectionStart : null;
   const app = document.getElementById('app');
   app.innerHTML = '';
   app.appendChild(renderApp());
-  if (prevId) {
-    const el = document.getElementById(prevId);
-    if (el) { el.focus(); if (prevPos != null && el.setSelectionRange) el.setSelectionRange(prevPos, prevPos); }
+}
+
+async function fetchSpotPrices() {
+  const btn = document.getElementById('fetch-btn');
+  if (btn) { btn.textContent = '↻  Fetching…'; btn.disabled = true; }
+  try {
+    const res = await fetch('https://api.metals.live/v1/spot');
+    if (!res.ok) throw new Error('Network error');
+    const data = await res.json();
+    // data is array of objects like [{gold: 3998.57}, {silver: 57.49}, ...]
+    const map = {};
+    data.forEach(obj => Object.assign(map, obj));
+    let changed = false;
+    if (map.gold)      { state.gold    = map.gold.toFixed(2);    changed = true; }
+    if (map.silver)    { state.silver  = map.silver.toFixed(2);  changed = true; }
+    if (map.platinum)  { state.plat    = map.platinum.toFixed(2); changed = true; }
+    if (map.palladium) { state.pall    = map.palladium.toFixed(2); changed = true; }
+    if (changed) {
+      saveSpot();
+      render(); // full render to update input values
+      showToast('Live spot prices updated ✓');
+    } else {
+      showToast('No price data returned — enter manually.');
+    }
+  } catch(e) {
+    showToast('Could not fetch live prices — enter manually.');
+  } finally {
+    if (btn) { btn.textContent = '↻  Fetch Live Spot Prices'; btn.disabled = false; }
   }
 }
 
