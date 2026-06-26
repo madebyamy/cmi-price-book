@@ -337,7 +337,7 @@ const APPS_SCRIPT = `function doPost(e) {
 let state = {
   gold: '3998.57', silver: '57.49', plat: '1581.37', pall: '1450.00',
   q: '', metal: 'all', oz: 'all', spotOnly: false, sort: 'cat',
-  cart: {}, cardFee: false, override: {}, priceOverride: {},
+  cart: {}, cardFee: false, payment: '', override: {}, priceOverride: {},
   cartOpen: false, settingsOpen: false,
   custFirst: '', custLast: '', custEmail: '', custState: '', custSub: false,
   webhook: 'https://script.google.com/macros/s/AKfycbzGIWE2dKNGyavwnaGF-01ipDDSJhrZew6lvS0reS-WtMV-HLuA74Ag4pmmkUE04ttXYQ/exec', sending: false, toast: '', toastTimer: null
@@ -345,12 +345,12 @@ let state = {
 
 function loadState() {
   try { const s = JSON.parse(localStorage.getItem('cmiShowSpot_v1')); if (s) Object.assign(state, {gold:s.gold||state.gold,silver:s.silver||state.silver,plat:s.plat||state.plat,pall:s.pall||state.pall}); } catch(e){}
-  try { const c = JSON.parse(localStorage.getItem('cmiShowCart_v1')); if (c) Object.assign(state, {cart:c.cart||{},cardFee:!!c.cardFee,override:c.override||{},priceOverride:c.priceOverride||{}}); } catch(e){}
+  try { const c = JSON.parse(localStorage.getItem('cmiShowCart_v1')); if (c) Object.assign(state, {cart:c.cart||{},cardFee:!!c.cardFee,payment:c.payment||'',override:c.override||{},priceOverride:c.priceOverride||{}}); } catch(e){}
   try { const w = localStorage.getItem('cmiSheetWebhook_v1'); if (w) state.webhook = w; } catch(e){}
 }
 
 function saveSpot() { try { localStorage.setItem('cmiShowSpot_v1', JSON.stringify({gold:state.gold,silver:state.silver,plat:state.plat,pall:state.pall})); } catch(e){} }
-function saveCart() { try { localStorage.setItem('cmiShowCart_v1', JSON.stringify({cart:state.cart,cardFee:state.cardFee,override:state.override,priceOverride:state.priceOverride})); } catch(e){} }
+function saveCart() { try { localStorage.setItem('cmiShowCart_v1', JSON.stringify({cart:state.cart,cardFee:state.cardFee,payment:state.payment,override:state.override,priceOverride:state.priceOverride})); } catch(e){} }
 function saveWebhook(v) { try { localStorage.setItem('cmiSheetWebhook_v1', v.trim()); } catch(e){} }
 
 // ---- Pricing ----
@@ -418,7 +418,11 @@ function decItem(id) {
   state.cart = c; saveCart(); render();
 }
 function clearCart() { state.cart = {}; state.override = {}; state.priceOverride = {}; saveCart(); render(); }
-function toggleCardFee() { state.cardFee = !state.cardFee; saveCart(); render(); }
+function setPayment(method) {
+  state.payment = method;
+  state.cardFee = (method === 'Credit Card');
+  saveCart(); render();
+}
 
 function showToast(msg) {
   if (state.toastTimer) clearTimeout(state.toastTimer);
@@ -437,7 +441,7 @@ async function recordSale() {
   });
   const subtotal = +items.reduce((a,l) => a+l.lineTotal, 0).toFixed(2);
   const cardFee = state.cardFee ? +(subtotal*0.03).toFixed(2) : 0;
-  const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.cardFee?'Credit Card':'Cash/Check', cardFeePct:state.cardFee?3:0, custFirst:state.custFirst.trim(), custLast:state.custLast.trim(), custEmail:state.custEmail.trim(), custState:state.custState, custSub:state.custSub, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
+  const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod:state.payment||'Unspecified', cardFeePct:state.cardFee?3:0, custFirst:state.custFirst.trim(), custLast:state.custLast.trim(), custEmail:state.custEmail.trim(), custState:state.custState, custSub:state.custSub, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
   state.sending = true; render();
   try {
     // URLSearchParams sends as application/x-www-form-urlencoded — simple request, no CORS preflight, real response readable
@@ -446,7 +450,7 @@ async function recordSale() {
     const text = await res.text();
     if (!res.ok || (text && text.toLowerCase().includes('error'))) throw new Error(text);
     const hadEmail = !!state.custEmail.trim();
-    state.sending = false; state.cart = {}; state.override = {}; state.cardFee = false; state.cartOpen = false;
+    state.sending = false; state.cart = {}; state.override = {}; state.cardFee = false; state.payment = ''; state.cartOpen = false;
     state.custFirst = ''; state.custLast = ''; state.custEmail = ''; state.custState = ''; state.custSub = false;
     saveCart(); showToast(hadEmail ? 'Sale recorded & receipt emailed ✓' : 'Sale recorded to Google Sheet ✓');
   } catch(e) {
@@ -805,9 +809,22 @@ function buildListSection() {
     stateRow.appendChild(stateField);
     custSec.appendChild(stateRow);
     footer.appendChild(custSec);
-    const feeStyle = 'width:100%;padding:12px;border-radius:2px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;'+(st.cardFee?'border:1px solid var(--navy);background:var(--navy);color:#fff;':'border:1px solid var(--navy);background:#fff;color:var(--navy);');
-    footer.appendChild(h('button',{style:feeStyle,onClick:()=>toggleCardFee()},st.cardFee?'✓  Credit card fee applied (+3%)':'Add credit card fee (+3%)'));
-    if (st.cardFee) footer.appendChild(h('div',{className:'totals-row',style:'margin-top:10px;'},h('span',null,'Credit card fee (3%)'),h('span',null,fmt(cartFee))));
+    // Payment method
+    const pmSec = h('div',{style:'margin-top:14px;'});
+    pmSec.appendChild(h('div',{className:'cust-section-label'},'Payment Method'));
+    const pmGrid = h('div',{style:'display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;'});
+    ['Cash','Check','Wire','Credit Card','Debit'].forEach(method => {
+      const isSelected = st.payment === method;
+      const btn = h('button',{
+        style:'padding:8px 14px;border-radius:2px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;border:1px solid var(--navy);'
+          +(isSelected?'background:var(--navy);color:#fff;':'background:#fff;color:var(--navy);'),
+        onClick:()=>setPayment(isSelected?'':method)
+      }, (isSelected?'✓  ':'')+method+(method==='Credit Card'?' (+3%)':''));
+      pmGrid.appendChild(btn);
+    });
+    pmSec.appendChild(pmGrid);
+    if (st.cardFee) pmSec.appendChild(h('div',{className:'totals-row',style:'margin-top:10px;'},h('span',null,'Credit card fee (3%)'),h('span',null,fmt(cartFee))));
+    footer.appendChild(pmSec);
     footer.appendChild(h('div',{className:'grand-row'},
       h('span',{className:'grand-label'},'Total'),
       h('span',{className:'grand-total'},fmt(cartGrand))
