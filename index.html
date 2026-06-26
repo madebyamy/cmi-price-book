@@ -111,7 +111,12 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .badge-over{font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--warn-text);background:var(--warn-bg);padding:2px 6px;border-radius:2px;font-weight:600;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
 .item-right{text-align:right;flex-shrink:0;}
 .item-price{font-size:21px;font-weight:600;color:var(--navy);line-height:1;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;}
+.item-price-inp{font-size:19px;font-weight:600;color:var(--navy);font-family:'MB Empire','Arial Narrow',Arial,sans-serif;width:90px;text-align:right;border:none;border-bottom:2px solid var(--gold);background:transparent;outline:none;padding:0 2px 1px;line-height:1;}
+.item-price-inp.overridden{color:var(--gold);}
+.price-reset{font-size:10px;color:#aaa;cursor:pointer;display:block;text-align:right;margin-top:2px;text-decoration:underline;}
 .item-rule{font-size:11px;color:var(--gold);margin-top:4px;white-space:nowrap;}
+.step-qty-inp{width:38px;font-size:15px;color:var(--navy);text-align:center;font-family:'MB Empire','Arial Narrow',Arial,sans-serif;border:none;background:transparent;outline:none;padding:0 4px;-moz-appearance:textfield;}
+.step-qty-inp::-webkit-inner-spin-button,.step-qty-inp::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
 .melt-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:7px;border-top:1px dashed var(--border-1);}
 .melt-val{font-size:11.5px;color:#888;}
 .prem-val{font-size:11.5px;color:var(--dark-gray);}
@@ -332,7 +337,7 @@ const APPS_SCRIPT = `function doPost(e) {
 let state = {
   gold: '3998.57', silver: '57.49', plat: '1581.37', pall: '1450.00',
   q: '', metal: 'all', oz: 'all', spotOnly: false, sort: 'cat',
-  cart: {}, cardFee: false, override: {},
+  cart: {}, cardFee: false, override: {}, priceOverride: {},
   cartOpen: false, settingsOpen: false,
   custFirst: '', custLast: '', custEmail: '', custState: '', custSub: false,
   webhook: 'https://script.google.com/macros/s/AKfycbzGIWE2dKNGyavwnaGF-01ipDDSJhrZew6lvS0reS-WtMV-HLuA74Ag4pmmkUE04ttXYQ/exec', sending: false, toast: '', toastTimer: null
@@ -340,12 +345,12 @@ let state = {
 
 function loadState() {
   try { const s = JSON.parse(localStorage.getItem('cmiShowSpot_v1')); if (s) Object.assign(state, {gold:s.gold||state.gold,silver:s.silver||state.silver,plat:s.plat||state.plat,pall:s.pall||state.pall}); } catch(e){}
-  try { const c = JSON.parse(localStorage.getItem('cmiShowCart_v1')); if (c) Object.assign(state, {cart:c.cart||{},cardFee:!!c.cardFee,override:c.override||{}}); } catch(e){}
+  try { const c = JSON.parse(localStorage.getItem('cmiShowCart_v1')); if (c) Object.assign(state, {cart:c.cart||{},cardFee:!!c.cardFee,override:c.override||{},priceOverride:c.priceOverride||{}}); } catch(e){}
   try { const w = localStorage.getItem('cmiSheetWebhook_v1'); if (w) state.webhook = w; } catch(e){}
 }
 
 function saveSpot() { try { localStorage.setItem('cmiShowSpot_v1', JSON.stringify({gold:state.gold,silver:state.silver,plat:state.plat,pall:state.pall})); } catch(e){} }
-function saveCart() { try { localStorage.setItem('cmiShowCart_v1', JSON.stringify({cart:state.cart,cardFee:state.cardFee,override:state.override})); } catch(e){} }
+function saveCart() { try { localStorage.setItem('cmiShowCart_v1', JSON.stringify({cart:state.cart,cardFee:state.cardFee,override:state.override,priceOverride:state.priceOverride})); } catch(e){} }
 function saveWebhook(v) { try { localStorage.setItem('cmiSheetWebhook_v1', v.trim()); } catch(e){} }
 
 // ---- Pricing ----
@@ -358,6 +363,7 @@ function spotFor(m) {
   return {gold:pf(state.gold),silver:pf(state.silver),platinum:pf(state.plat),palladium:pf(state.pall)}[m] || 0;
 }
 function unitPrice(it, spot) {
+  if (state.priceOverride[it.id] !== undefined) return state.priceOverride[it.id];
   const melt = spot * it.oz;
   switch(it.mode) {
     case 'flat':    return it.p;
@@ -411,7 +417,7 @@ function decItem(id) {
   else c[id] = v;
   state.cart = c; saveCart(); render();
 }
-function clearCart() { state.cart = {}; state.override = {}; saveCart(); render(); }
+function clearCart() { state.cart = {}; state.override = {}; state.priceOverride = {}; saveCart(); render(); }
 function toggleCardFee() { state.cardFee = !state.cardFee; saveCart(); render(); }
 
 function showToast(msg) {
@@ -649,8 +655,28 @@ function buildListSection() {
         left.appendChild(badges);
         top.appendChild(left);
         const right = h('div',{className:'item-right'});
-        right.appendChild(h('div',{className:'item-price'},fmt(price)));
-        right.appendChild(h('div',{className:'item-rule'},ruleLabel(it)));
+        const isOverridden = state.priceOverride[it.id] !== undefined;
+        const priceWrap = h('div',{style:'display:flex;align-items:baseline;justify-content:flex-end;gap:1px;'});
+        priceWrap.appendChild(h('span',{style:'font-size:14px;font-weight:600;color:'+(isOverridden?'var(--gold)':'var(--navy)')+';font-family:"MB Empire","Arial Narrow",Arial,sans-serif;line-height:1;'},'$'));
+        const priceInp = h('input',{type:'number',className:'item-price-inp'+(isOverridden?' overridden':''),value:price.toFixed(2),min:'0',step:'0.01',inputmode:'decimal'});
+        priceInp.addEventListener('focus', e => e.target.select());
+        priceInp.addEventListener('input', e => {
+          const v = parseFloat(e.target.value);
+          if (!isNaN(v) && v >= 0) state.priceOverride[it.id] = v;
+          else delete state.priceOverride[it.id];
+          saveCart();
+        });
+        priceInp.addEventListener('blur', () => renderList());
+        priceWrap.appendChild(priceInp);
+        right.appendChild(priceWrap);
+        const ruleRow = h('div',{style:'display:flex;flex-direction:column;align-items:flex-end;'});
+        ruleRow.appendChild(h('div',{className:'item-rule'},isOverridden ? 'Custom price' : ruleLabel(it)));
+        if (isOverridden) {
+          const reset = h('span',{className:'price-reset'},'reset');
+          reset.addEventListener('click', e => { e.stopPropagation(); delete state.priceOverride[it.id]; saveCart(); renderList(); });
+          ruleRow.appendChild(reset);
+        }
+        right.appendChild(ruleRow);
         top.appendChild(right);
         card.appendChild(top);
         // Melt line
@@ -672,7 +698,16 @@ function buildListSection() {
           inCartTop.appendChild(h('span',{className:'in-cart-label'},'In order: ',h('strong',{style:'color:var(--navy);'},fmt(price*cq))));
           const stepper = h('div',{className:'stepper'});
           stepper.appendChild(h('button',{className:'step-btn',onClick:()=>decItem(it.id)},'−'));
-          stepper.appendChild(h('span',{className:'step-qty'},cq));
+          const qtyInp = h('input',{type:'number',className:'step-qty-inp',value:cq,min:'1',inputmode:'numeric'});
+          qtyInp.addEventListener('focus', e => e.target.select());
+          qtyInp.addEventListener('input', e => {
+            const v = parseInt(e.target.value) || 0;
+            if (v <= 0) { const c={...state.cart}; delete c[it.id]; const o={...state.override}; delete o[it.id]; state.cart=c; state.override=o; }
+            else { state.cart={...state.cart,[it.id]:v}; }
+            saveCart();
+          });
+          qtyInp.addEventListener('blur', () => renderList());
+          stepper.appendChild(qtyInp);
           const incBtn = h('button',{className:`step-btn ${atMax?'step-inc-max':'step-inc-norm'}`,onClick:()=>atMax?overrideAdd(it.id):addItem(it.id)},'＋');
           stepper.appendChild(incBtn);
           inCartTop.appendChild(stepper);
