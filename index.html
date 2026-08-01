@@ -297,16 +297,13 @@ INV.forEach((it,i) => it.id = i);
 const APPS_SCRIPT = `function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Orders') || ss.insertSheet('Orders');
-  var startCol = 3; // columns A & B reserved — CMI data starts at column C
-  var headers = ['Date In','Order ID','Payment','Item','Qty','Spot Price','Unit Price','Line Total','Subtotal','Card Fee','Order Total','First Name','Last Name','Email','State','Subscribe'];
-  if (sheet.getLastRow() === 0 || sheet.getRange(1, startCol).getValue() !== 'Date In') {
-    sheet.getRange(1, startCol, 1, headers.length).setValues([headers]);
+  var headers = ['Timestamp','Order ID','Payment','Item','Qty','Spot Price','Unit Price','Line Total','Subtotal','Card Fee','Order Total','First Name','Last Name','Email','State','Subscribe'];
+  if (sheet.getLastRow() === 0 || sheet.getRange(1,1).getValue() !== 'Timestamp') {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   var d = JSON.parse(e.parameter.payload || e.postData.contents);
   d.items.forEach(function(it) {
-    var nextRow = sheet.getLastRow() + 1;
-    var rowData = [d.timestamp, d.orderId, d.paymentMethod, it.item, it.qty, it.spotPrice, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total, d.custFirst, d.custLast, d.custEmail, d.custState, d.custSub ? 'Yes' : 'No'];
-    sheet.getRange(nextRow, startCol, 1, rowData.length).setValues([rowData]);
+    sheet.appendRow([d.timestamp, d.orderId, d.paymentMethod, it.item, it.qty, it.spotPrice, it.unitPrice, it.lineTotal, d.subtotal, d.cardFee, d.total, d.custFirst, d.custLast, d.custEmail, d.custState, d.custSub ? 'Yes' : 'No']);
   });
 
   // Send receipt email if customer provided an email address
