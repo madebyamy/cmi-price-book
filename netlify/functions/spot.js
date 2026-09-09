@@ -1,8 +1,8 @@
 const https = require('https');
 
-function get(url, headers = {}) {
+function get(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', ...headers } }, res => {
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, res => {
       let body = '';
       res.on('data', d => body += d);
       res.on('end', () => resolve({ status: res.statusCode, body }));
@@ -10,27 +10,42 @@ function get(url, headers = {}) {
   });
 }
 
-const TOKEN = process.env.NFUSION_API_KEY;
+// CMI's own nFusion widget feed (same source as cmigs.com ticker)
+const WIDGET_URL = 'https://widget.nfusionsolutions.com/widget/script/ticker/1/f1a88494-4da3-4f36-b8ae-0317b4ee2475/36aa0e02-7d4a-4330-810c-69981ab1a7dc?symbols=gold,silver,platinum,palladium';
 
 exports.handler = async () => {
-  if (!TOKEN) return { statusCode: 500, body: JSON.stringify({ error: 'NFUSION_API_KEY not set' }) };
+  try {
+    const { status, body } = await get(WIDGET_URL);
+    if (status !== 200) throw new Error(`widget status ${status}`);
 
-  const attempts = [
-    // token in query param, .biz domain
-    { url: `https://api.nfusionsolutions.biz/api/v1/Metals/spot?token=${TOKEN}&currency=USD&format=json` },
-    // token in Authorization header, .biz domain
-    { url: 'https://api.nfusionsolutions.biz/api/v1/Metals/spot?currency=USD&format=json', headers: { 'Authorization': `Bearer ${TOKEN}` } },
-    // .com domain
-    { url: `https://api.nfusionsolutions.com/api/v1/Metals/spot?token=${TOKEN}&currency=USD&format=json` },
-    // .com with header
-    { url: 'https://api.nfusionsolutions.com/api/v1/Metals/spot?currency=USD&format=json', headers: { 'Authorization': `Bearer ${TOKEN}` } },
-  ];
+    // Extract prices from the JS — they appear as e.g. "gold":{"ask":3998.57,...}
+    const prices = {};
+    const metals = ['gold', 'silver', 'platinum', 'palladium'];
+    for (const metal of metals) {
+      // Try multiple patterns the widget JS might use
+      const patterns = [
+        new RegExp(`"${metal}"[^}]*?"ask"\\s*:\\s*([0-9.]+)`, 'i'),
+        new RegExp(`"${metal}"[^}]*?"price"\\s*:\\s*([0-9.]+)`, 'i'),
+        new RegExp(`"${metal}"[^}]*?"bid"\\s*:\\s*([0-9.]+)`, 'i'),
+        new RegExp(`${metal}[^}]*?ask[^:]*:\\s*([0-9.]+)`, 'i'),
+      ];
+      for (const re of patterns) {
+        const m = body.match(re);
+        if (m) { prices[metal] = parseFloat(m[1]); break; }
+      }
+    }
 
-  const results = {};
-  for (const { url, headers = {} } of attempts) {
-    const key = url.replace(/token=[^&]+/, 'token=REDACTED').split('nfusion')[1];
-    const { status, body } = await get(url, headers).catch(e => ({ status: 0, body: e.message }));
-    results[key] = { status, body: body.slice(0, 300) };
+    if (!prices.gold) {
+      // Return first 500 chars of widget body for debugging
+      return { statusCode: 502, body: JSON.stringify({ error: 'could not parse prices', preview: body.slice(0, 500) }) };
+    }
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prices),
+    };
+  } catch (err) {
+    return { statusCode: 502, body: JSON.stringify({ error: err.message }) };
   }
-  return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(results, null, 2) };
 };
