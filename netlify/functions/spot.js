@@ -11,13 +11,16 @@ function get(url) {
 }
 
 exports.handler = async () => {
+  const token = process.env.NFUSION_API_KEY;
+  if (!token) return { statusCode: 500, body: JSON.stringify({ error: 'NFUSION_API_KEY not set' }) };
   try {
-    const { status, body } = await get('https://api.metals.live/v1/spot');
-    if (status !== 200) throw new Error(`metals.live status ${status}`);
-    const items = JSON.parse(body); // [{gold:…},{silver:…},…]
+    const url = `https://api.nfusionsolutions.biz/api/v1/Metals/spot?token=${token}&currency=USD&format=json`;
+    const { status, body } = await get(url);
+    if (status !== 200) throw new Error(`nFusion status ${status}: ${body}`);
+    const data = JSON.parse(body);
     const map = {};
-    items.forEach(obj => Object.assign(map, obj));
-    if (!map.gold) throw new Error('no gold price in response');
+    data.forEach(item => { if (item.name) map[item.name.toLowerCase()] = item.price; });
+    if (!map.gold) throw new Error('no gold in response');
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
