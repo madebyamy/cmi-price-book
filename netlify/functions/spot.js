@@ -21,9 +21,10 @@ exports.handler = async () => {
     if (status !== 200) throw new Error(`nFusion ${status}: ${body.slice(0, 200)}`);
     const data = JSON.parse(body);
     const prices = {};
-    (Array.isArray(data) ? data : data.data || []).forEach(item => {
-      const name = (item.name || item.metal || '').toLowerCase();
-      const price = item.ask ?? item.price ?? item.bid ?? item.mid;
+    (Array.isArray(data) ? data : []).forEach(item => {
+      const name = (item.requestedSymbol || '').toLowerCase();
+      const d = item.data || {};
+      const price = d.ask ?? d.last ?? d.bid;
       if (name && price != null) prices[name] = price;
     });
     if (!prices.gold) throw new Error(`no gold — raw: ${body.slice(0, 300)}`);
