@@ -1,13 +1,22 @@
+const https = require('https');
+
+function get(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, res => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => resolve({ status: res.statusCode, body }));
+    }).on('error', reject);
+  });
+}
+
 exports.handler = async () => {
   try {
-    // goldprice.org public data feed — no key required
-    const res = await fetch('https://data-asg.goldprice.org/dbXRates/USD', {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
-    if (!res.ok) throw new Error(`goldprice ${res.status}`);
-    const data = await res.json();
+    const { status, body } = await get('https://data-asg.goldprice.org/dbXRates/USD');
+    if (status !== 200) throw new Error(`goldprice status ${status}`);
+    const data = JSON.parse(body);
     const item = data.items?.[0];
-    if (!item) throw new Error('no data');
+    if (!item) throw new Error('no item in response');
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
