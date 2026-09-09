@@ -926,22 +926,8 @@ async function fetchSpotPrices() {
   if (btn) { btn.textContent = '↻  Fetching…'; btn.disabled = true; }
   try {
     let map = {};
-    // Proxy through Netlify function to avoid CORS
-    try {
-      const res = await fetch('/.netlify/functions/spot');
-      if (res.ok) {
-        const data = await res.json();
-        data.forEach(item => { if (item.name) map[item.name.toLowerCase()] = item.price; });
-      }
-    } catch(_) {}
-    // Fallback to free API if nFusion didn't return data
-    if (!map.gold && !map.silver) {
-      const res2 = await fetch('https://api.metals.live/v1/spot');
-      if (res2.ok) {
-        const data2 = await res2.json();
-        data2.forEach(obj => Object.assign(map, obj));
-      }
-    }
+    const res = await fetch('/.netlify/functions/spot');
+    if (res.ok) { map = await res.json(); }
     let changed = false;
     if (map.gold)      { state.gold    = (+map.gold).toFixed(2);      changed = true; }
     if (map.silver)    { state.silver  = (+map.silver).toFixed(2);    changed = true; }
