@@ -12,19 +12,20 @@ function get(url) {
 
 exports.handler = async () => {
   try {
-    const { status, body } = await get('https://data-asg.goldprice.org/dbXRates/USD');
-    if (status !== 200) throw new Error(`goldprice status ${status}`);
-    const data = JSON.parse(body);
-    const item = data.items?.[0];
-    if (!item) throw new Error('no item in response');
+    const { status, body } = await get('https://api.metals.live/v1/spot');
+    if (status !== 200) throw new Error(`metals.live status ${status}`);
+    const items = JSON.parse(body); // [{gold:…},{silver:…},…]
+    const map = {};
+    items.forEach(obj => Object.assign(map, obj));
+    if (!map.gold) throw new Error('no gold price in response');
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        gold:      item.xauPrice,
-        silver:    item.xagPrice,
-        platinum:  item.xptPrice,
-        palladium: item.xpdPrice,
+        gold:      map.gold,
+        silver:    map.silver,
+        platinum:  map.platinum,
+        palladium: map.palladium,
       }),
     };
   } catch (err) {
