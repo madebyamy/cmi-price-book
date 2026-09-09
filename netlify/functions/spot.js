@@ -10,28 +10,21 @@ function get(url) {
   });
 }
 
+const TOKEN = process.env.NFUSION_API_KEY;
+
+const ENDPOINTS = [
+  `https://api.nfusionsolutions.biz/api/v1/Metals/spot?token=${TOKEN}&currency=USD&format=json`,
+  `https://api.nfusionsolutions.biz/api/v2/Metals/spot?token=${TOKEN}&currency=USD&format=json`,
+  `https://api.nfusionsolutions.biz/api/v1/spot?token=${TOKEN}&currency=USD&format=json`,
+  `https://api.nfusionsolutions.biz/api/v1/Metals/summary?token=${TOKEN}&currency=USD&format=json`,
+];
+
 exports.handler = async () => {
-  const token = process.env.NFUSION_API_KEY;
-  if (!token) return { statusCode: 500, body: JSON.stringify({ error: 'NFUSION_API_KEY not set' }) };
-  try {
-    const url = `https://api.nfusionsolutions.biz/api/v1/Metals/spot?token=${token}&currency=USD&format=json`;
-    const { status, body } = await get(url);
-    if (status !== 200) throw new Error(`nFusion status ${status}: ${body}`);
-    const data = JSON.parse(body);
-    const map = {};
-    data.forEach(item => { if (item.name) map[item.name.toLowerCase()] = item.price; });
-    if (!map.gold) throw new Error('no gold in response');
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        gold:      map.gold,
-        silver:    map.silver,
-        platinum:  map.platinum,
-        palladium: map.palladium,
-      }),
-    };
-  } catch (err) {
-    return { statusCode: 502, body: JSON.stringify({ error: err.message }) };
+  if (!TOKEN) return { statusCode: 500, body: JSON.stringify({ error: 'NFUSION_API_KEY not set' }) };
+  const results = {};
+  for (const url of ENDPOINTS) {
+    const { status, body } = await get(url).catch(e => ({ status: 0, body: e.message }));
+    results[url.split('biz')[1].split('?')[0]] = { status, body: body.slice(0, 200) };
   }
+  return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(results) };
 };
