@@ -468,9 +468,13 @@ async function recordSale() {
     return {item:it.n, category:it.c, metal:it.m, qty:qy, spotPrice:+spot.toFixed(2), unitPrice:+price.toFixed(2), lineTotal:+(price*qy).toFixed(2)};
   });
   const subtotal = +items.reduce((a,l) => a+l.lineTotal, 0).toFixed(2);
-  const ccAmt = state.payments['Credit Card'] || 0;
+  const selectedPMs = Object.keys(state.payments);
+  const isSplit = selectedPMs.length > 1;
+  const ccAmt = 'Credit Card' in state.payments ? (isSplit ? (state.payments['Credit Card'] || 0) : subtotal) : 0;
   const cardFee = +(ccAmt * 0.03).toFixed(2);
-  const paymentMethod = Object.entries(state.payments).filter(([,v])=>v>0).map(([k,v])=>`${k}: ${fmt(v)}`).join(' / ') || 'Unspecified';
+  const paymentMethod = isSplit
+    ? Object.entries(state.payments).filter(([,v])=>v>0).map(([k,v])=>`${k}: ${fmt(v)}`).join(' / ')
+    : (selectedPMs[0] || 'Unspecified');
   const order = {orderId:'O'+Date.now(), timestamp:new Date().toISOString(), paymentMethod, cardFeePct:ccAmt>0?3:0, custFirst:state.custFirst.trim(), custLast:state.custLast.trim(), custEmail:state.custEmail.trim(), custState:state.custState, custSub:state.custSub, items, subtotal, cardFee, total:+(subtotal+cardFee).toFixed(2)};
   state.sending = true; render();
   try {
@@ -651,7 +655,8 @@ function buildListSection() {
   }).filter(Boolean);
   const cartCount = cartLines.reduce((a,l) => a+l.qy, 0);
   const cartSub = cartLines.reduce((a,l) => a+l.line, 0);
-  const cartCcAmt = st.payments['Credit Card'] || 0;
+  const cartIsSplit = Object.keys(st.payments).length > 1;
+  const cartCcAmt = 'Credit Card' in st.payments ? (cartIsSplit ? (st.payments['Credit Card'] || 0) : cartSub) : 0;
   const cartFee = +(cartCcAmt * 0.03).toFixed(2);
   const cartGrand = cartSub + cartFee;
 
@@ -856,9 +861,9 @@ function buildListSection() {
       pmGrid.appendChild(btn);
     });
     pmSec.appendChild(pmGrid);
-    // Amount inputs for selected methods
+    // Amount inputs — only shown when 2+ methods selected
     const selectedMethods = Object.keys(st.payments);
-    if (selectedMethods.length > 0) {
+    if (selectedMethods.length > 1) {
       const amtGrid = h('div',{style:'display:flex;flex-direction:column;gap:6px;margin-top:12px;'});
       const allocated = Object.values(st.payments).reduce((a,v)=>a+(+v||0),0);
       const remaining = +(cartGrand - allocated).toFixed(2);
