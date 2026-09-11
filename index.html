@@ -961,7 +961,7 @@ function renderList() {
 function render() {
   const app = document.getElementById('app');
   app.innerHTML = '';
-  if (!sessionStorage.getItem('cmi-auth')) { app.appendChild(renderLogin()); return; }
+  if (!localStorage.getItem('cmi-auth')) { app.appendChild(renderLogin()); return; }
   app.appendChild(renderApp());
 }
 
@@ -982,7 +982,7 @@ function renderLogin() {
     onClick:()=>tryLogin()
   },'ENTER');
   const tryLogin = () => {
-    if (inp.value === 'Cmi1973') { sessionStorage.setItem('cmi-auth','1'); render(); }
+    if (inp.value === 'Cmi1973') { localStorage.setItem('cmi-auth','1'); render(); }
     else { err.textContent = 'Incorrect password'; inp.value = ''; inp.focus(); }
   };
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
