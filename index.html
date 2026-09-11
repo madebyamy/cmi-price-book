@@ -961,7 +961,38 @@ function renderList() {
 function render() {
   const app = document.getElementById('app');
   app.innerHTML = '';
+  if (!sessionStorage.getItem('cmi-auth')) { app.appendChild(renderLogin()); return; }
   app.appendChild(renderApp());
+}
+
+function renderLogin() {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);gap:20px;padding:24px;box-sizing:border-box;';
+  const logo = document.createElement('div');
+  logo.style.cssText = 'color:#c8a84b;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;font-size:22px;letter-spacing:0.12em;text-align:center;line-height:1.4;';
+  logo.textContent = 'CMI GOLD & SILVER';
+  const sub = document.createElement('div');
+  sub.style.cssText = 'color:rgba(255,255,255,0.6);font-size:13px;letter-spacing:0.08em;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;';
+  sub.textContent = 'SHOW PRICE BOOK';
+  const inp = h('input',{type:'password',placeholder:'Enter password',
+    style:'padding:12px 16px;border:1px solid rgba(200,168,75,0.5);border-radius:2px;font-size:16px;background:rgba(255,255,255,0.08);color:#fff;width:100%;max-width:280px;box-sizing:border-box;outline:none;'});
+  const err = h('div',{style:'color:#e06060;font-size:13px;min-height:18px;'});
+  const btn = h('button',{
+    style:'padding:12px 28px;background:#c8a84b;color:var(--navy);border:none;border-radius:2px;font-family:"MB Empire","Arial Narrow",Arial,sans-serif;font-size:13px;letter-spacing:0.1em;cursor:pointer;width:100%;max-width:280px;',
+    onClick:()=>tryLogin()
+  },'ENTER');
+  const tryLogin = () => {
+    if (inp.value === 'Cmi1973') { sessionStorage.setItem('cmi-auth','1'); render(); }
+    else { err.textContent = 'Incorrect password'; inp.value = ''; inp.focus(); }
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+  wrap.appendChild(logo);
+  wrap.appendChild(sub);
+  wrap.appendChild(inp);
+  wrap.appendChild(btn);
+  wrap.appendChild(err);
+  setTimeout(()=>inp.focus(), 50);
+  return wrap;
 }
 
 async function fetchSpotPrices() {
