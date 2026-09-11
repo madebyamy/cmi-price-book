@@ -768,7 +768,7 @@ function buildListSection() {
 
   // Cart bar
   if (cartCount > 0) {
-    wrap.appendChild(h('div',{className:'cart-bar',onClick:()=>{state.cartOpen=true;render();}},
+    wrap.appendChild(h('div',{className:'cart-bar',onClick:()=>{state.cartOpen=true;state.custOpen=true;render();}},
       h('div',{className:'cart-bar-left'},
         h('span',{className:'cart-bar-count'},cartCount+(cartCount===1?' item selected':' items selected')),
         h('span',{className:'cart-bar-total'},fmt(cartGrand))
