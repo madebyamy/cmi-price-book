@@ -493,7 +493,7 @@ async function recordSale() {
     state.custFirst = ''; state.custLast = ''; state.custEmail = ''; state.custState = ''; state.custSub = false;
     saveCart(); showToast(hadEmail ? 'Sale recorded & receipt emailed ✓' : 'Sale recorded to Google Sheet ✓');
   } catch(e) {
-    state.sending = false; showToast('Sheet error — check the URL in ⚙ Settings and try again.');
+    state.sending = false; showToast('Error: ' + (e.message || e).toString().slice(0,120));
   }
 }
 
